@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { formatTier } from '@/src/lib/rank-labels';
 
 interface RankBadgeProps {
   tier: string;
@@ -20,13 +21,13 @@ export function RankBadge({
   className,
 }: RankBadgeProps): React.ReactElement {
   return (
-    <div className={cn('flex flex-col items-end gap-2', className)}>
+    <div className={cn('flex flex-col items-end gap-1', className)}>
       <div
         className={cn(
-          'rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold uppercase tracking-[0.18em] text-foreground'
+          'rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-foreground'
         )}
       >
-        {tier} {rank}
+        {formatTier(tier, rank)}
       </div>
       <div className="text-xs text-muted-foreground">
         {leaguePoints} <span className="text-foreground/70">PDL</span>

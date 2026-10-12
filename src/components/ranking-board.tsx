@@ -16,6 +16,7 @@ import {
   rankQueryOptions,
 } from '@/src/queries/useRankQuery';
 import { Button } from './ui/button';
+import { formatTier } from '@/src/lib/rank-labels';
 import type { LeagueEntry } from '@/src/lib/validators';
 
 type QueueTab = {
@@ -41,19 +42,6 @@ const TIER_ORDER = [
   'GRANDMASTER',
   'CHALLENGER',
 ];
-
-const TIER_LABEL: Record<string, string> = {
-  IRON: 'Ferro',
-  BRONZE: 'Bronze',
-  SILVER: 'Prata',
-  GOLD: 'Ouro',
-  PLATINUM: 'Platina',
-  EMERALD: 'Esmeralda',
-  DIAMOND: 'Diamante',
-  MASTER: 'Mestre',
-  GRANDMASTER: 'Grão-Mestre',
-  CHALLENGER: 'Desafiante',
-};
 
 const DIVISION_ORDER = ['IV', 'III', 'II', 'I'];
 
@@ -201,7 +189,7 @@ export function RankingBoard(): React.ReactElement {
                 className={cn(
                   'rounded-full px-5 py-2 text-sm font-medium transition-colors',
                   selected
-                    ? 'bg-foreground text-background'
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
                 )}
               >
@@ -259,9 +247,6 @@ export function RankingBoard(): React.ReactElement {
             const { tier, rank, leaguePoints, wins, losses } = row.entry!;
             const total = wins + losses;
             const winRate = total > 0 ? (wins / total) * 100 : 0;
-            const isApex = ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(
-              tier
-            );
             return (
               <li
                 key={row.riotId}
@@ -270,7 +255,8 @@ export function RankingBoard(): React.ReactElement {
                 <span
                   className={cn(
                     'flex size-10 shrink-0 items-center justify-center rounded-full border border-border text-lg font-semibold',
-                    i === 0 && 'bg-foreground text-background'
+                    i === 0 &&
+                      'border-primary bg-primary text-primary-foreground'
                   )}
                   aria-label={`${i + 1}º lugar`}
                 >
@@ -284,7 +270,7 @@ export function RankingBoard(): React.ReactElement {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold uppercase tracking-wider">
-                    {TIER_LABEL[tier] ?? tier} {isApex ? '' : rank}
+                    {formatTier(tier, rank)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {leaguePoints} PDL
