@@ -11,10 +11,10 @@ import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { leagueApiService } from '@/src/services/leagueApiService';
-import { PRESET_SUMMONERS } from '@/src/constants/presetSummoners';
 import { clearRankCache } from '@/src/lib/rank-cache';
 
-const player = PRESET_SUMMONERS[0];
+// A real, ranked player from the group
+const player = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
 const riotId = `${player.gameName}#${player.tagLine}`;
 const region = player.region;
 const encoded = encodeURIComponent(riotId);

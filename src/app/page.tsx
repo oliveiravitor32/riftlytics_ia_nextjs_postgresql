@@ -1,13 +1,18 @@
 /**
  * Home Page
- * Displays all preset player profiles in a grid
+ * Displays every active player (from the database) as a card
  */
 
 import React from 'react';
-import { PRESET_SUMMONERS } from '@/src/constants/presetSummoners';
 import { ProfileCard } from '@/src/components/profile-card-new';
+import { getActivePlayers } from '@/src/services/playerService';
 
-export default function Home(): React.ReactElement {
+// Player list comes from the DB on every request
+export const dynamic = 'force-dynamic';
+
+export default async function Home(): Promise<React.ReactElement> {
+  const players = await getActivePlayers();
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Hero Section */}
@@ -44,20 +49,19 @@ export default function Home(): React.ReactElement {
               Perfis dos jogadores
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Acompanhando {PRESET_SUMMONERS.length} jogadores
+              Acompanhando {players.length} jogadores
             </p>
           </div>
 
           <ul className="flex flex-col gap-5">
-            {PRESET_SUMMONERS.map((summoner) => (
+            {players.map((summoner) => (
               <li key={`${summoner.gameName}#${summoner.tagLine}`}>
                 <ProfileCard
                   gameName={summoner.gameName}
                   tagLine={summoner.tagLine}
-                  displayName={summoner.gameName}
+                  displayName={summoner.displayName}
                   region={summoner.region}
                   avatarUrl={summoner.avatarUrl}
-                  pdlHistory={summoner.pdlHistory}
                 />
               </li>
             ))}

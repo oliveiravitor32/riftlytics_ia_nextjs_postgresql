@@ -5,7 +5,24 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RankingBoard } from './ranking-board';
-import { PRESET_SUMMONERS } from '@/src/constants/presetSummoners';
+import type { TrackedPlayer } from '@/src/services/playerService';
+
+const PLAYERS: TrackedPlayer[] = [
+  'FlyerCloud#br1',
+  'Neutro7#BR1',
+  'SAVYORI#br1',
+  'PistolaCanoCurto#BR2',
+  'Pistola Torta#br1',
+].map((id) => {
+  const [gameName, tagLine] = id.split('#');
+  return {
+    gameName,
+    tagLine,
+    region: 'br1',
+    displayName: gameName,
+    avatarUrl: null,
+  };
+});
 
 function entry(queueType: string, tier: string, leaguePoints: number) {
   return {
@@ -40,11 +57,11 @@ function rateLimitedResponse(retryAfter = 30) {
 
 // Each player gets a distinct LP so the expected order is deterministic
 function rankFor(url: string) {
-  const index = PRESET_SUMMONERS.findIndex((s) =>
+  const index = PLAYERS.findIndex((s) =>
     decodeURIComponent(url).includes(`${s.gameName}#${s.tagLine}`)
   );
   return {
-    name: PRESET_SUMMONERS[index].gameName,
+    name: PLAYERS[index].gameName,
     rankInfo: entry('RANKED_SOLO_5x5', 'GOLD', index * 10),
     flexRankInfo: index === 0 ? entry('RANKED_FLEX_SR', 'SILVER', 5) : null,
     fetchedAt: new Date().toISOString(),
@@ -57,7 +74,7 @@ function renderBoard() {
   const client = new QueryClient();
   return render(
     <QueryClientProvider client={client}>
-      <RankingBoard />
+      <RankingBoard players={PLAYERS} />
     </QueryClientProvider>
   );
 }
@@ -72,7 +89,7 @@ it('orders players by tier/LP, highest first', async () => {
   renderBoard();
 
   const items = await screen.findAllByRole('listitem');
-  const last = PRESET_SUMMONERS[PRESET_SUMMONERS.length - 1].gameName;
+  const last = PLAYERS[PLAYERS.length - 1].gameName;
   expect(items[0]).toHaveTextContent(last);
 });
 
@@ -85,7 +102,7 @@ it('shows a friendly message and disables refresh when rate limited', async () =
   );
   expect(screen.getByRole('button', { name: /atualizar/i })).toBeDisabled();
   // 429 must not be retried by the client
-  expect(fetchMock).toHaveBeenCalledTimes(PRESET_SUMMONERS.length);
+  expect(fetchMock).toHaveBeenCalledTimes(PLAYERS.length);
 });
 
 it('switching tabs reuses the cache (no new requests)', async () => {
@@ -110,6 +127,6 @@ it('refresh button forces a new request with refresh=1', async () => {
   await waitFor(() =>
     expect(
       fetchMock.mock.calls.filter(([url]) => String(url).includes('refresh=1'))
-    ).toHaveLength(PRESET_SUMMONERS.length)
+    ).toHaveLength(PLAYERS.length)
   );
 });

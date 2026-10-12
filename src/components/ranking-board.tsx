@@ -9,7 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { PRESET_SUMMONERS } from '@/src/constants/presetSummoners';
+import type { TrackedPlayer } from '@/src/services/playerService';
 import {
   fetchRank,
   isRateLimitError,
@@ -79,7 +79,11 @@ type RankingRow = {
   isRateLimited: boolean;
 };
 
-export function RankingBoard(): React.ReactElement {
+export function RankingBoard({
+  players,
+}: {
+  players: TrackedPlayer[];
+}): React.ReactElement {
   const [activeTab, setActiveTab] = useState<QueueTab['id']>('solo');
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -88,7 +92,7 @@ export function RankingBoard(): React.ReactElement {
   const [now, setNow] = useState(() => Date.now());
 
   const results = useQueries({
-    queries: PRESET_SUMMONERS.map((s) =>
+    queries: players.map((s) =>
       rankQueryOptions(`${s.gameName}#${s.tagLine}`, s.region)
     ),
   });
@@ -118,7 +122,7 @@ export function RankingBoard(): React.ReactElement {
   async function handleRefresh() {
     setIsRefreshing(true);
     await Promise.allSettled(
-      PRESET_SUMMONERS.map((s) => {
+      players.map((s) => {
         const riotId = `${s.gameName}#${s.tagLine}`;
         return queryClient.fetchQuery({
           ...rankQueryOptions(riotId, s.region),
@@ -133,7 +137,7 @@ export function RankingBoard(): React.ReactElement {
 
   const tab = TABS.find((t) => t.id === activeTab) ?? TABS[0];
 
-  const rows: RankingRow[] = PRESET_SUMMONERS.map((s, i) => ({
+  const rows: RankingRow[] = players.map((s, i) => ({
     riotId: `${s.gameName}#${s.tagLine}`,
     name: results[i].data?.name ?? s.gameName,
     avatarUrl: s.avatarUrl,

@@ -30,7 +30,6 @@ interface ProfileCardProps {
   displayName: string;
   region?: string;
   avatarUrl?: string | null;
-  pdlHistory?: PdlHistoryPoint[];
 }
 
 type PdlHistoryPoint = {
@@ -51,7 +50,6 @@ export function ProfileCard({
   displayName,
   region = 'na1',
   avatarUrl,
-  pdlHistory: presetPdlHistory = [],
 }: ProfileCardProps): React.ReactElement {
   // The chart only mounts once the section is opened (closed by default)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -110,10 +108,7 @@ export function ProfileCard({
   }
 
   const rankInfo = profile.rankInfo;
-  const pdlHistory: PdlHistoryPoint[] =
-    profile.pdlHistory && profile.pdlHistory.length > 0
-      ? profile.pdlHistory
-      : presetPdlHistory;
+  const pdlHistory: PdlHistoryPoint[] = profile.pdlHistory ?? [];
   return (
     <Card className="gap-0 overflow-hidden border-border bg-card py-0 shadow-sm transition-colors duration-200 hover:border-foreground/20">
       <article className="divide-y divide-border">
