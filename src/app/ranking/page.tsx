@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function RankingPage() {
   return (
     <div className="min-h-screen bg-background px-4 py-12 text-foreground">
-      <section aria-labelledby="titulo-ranking" className="mx-auto max-w-4xl">
+      <section aria-labelledby="titulo-ranking" className="mx-auto max-w-5xl">
         <header className="mb-8 space-y-2">
           <h1
             id="titulo-ranking"

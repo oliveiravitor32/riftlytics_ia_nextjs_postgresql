@@ -15,7 +15,7 @@ export default function Home(): React.ReactElement {
         aria-labelledby="titulo-inicio"
         className="border-b border-border/70 bg-card/40 px-4 py-14"
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="max-w-2xl space-y-4">
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
               Estatísticas de LoL entre amigos
@@ -35,7 +35,7 @@ export default function Home(): React.ReactElement {
 
       {/* Profiles Grid */}
       <section aria-labelledby="titulo-perfis" className="px-4 py-8">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="mb-4">
             <h2
               id="titulo-perfis"
@@ -48,7 +48,7 @@ export default function Home(): React.ReactElement {
             </p>
           </div>
 
-          <ul className="flex flex-col gap-3">
+          <ul className="flex flex-col gap-5">
             {PRESET_SUMMONERS.map((summoner) => (
               <li key={`${summoner.gameName}#${summoner.tagLine}`}>
                 <ProfileCard
@@ -56,6 +56,7 @@ export default function Home(): React.ReactElement {
                   tagLine={summoner.tagLine}
                   displayName={summoner.gameName}
                   region={summoner.region}
+                  avatarUrl={summoner.avatarUrl}
                   pdlHistory={summoner.pdlHistory}
                 />
               </li>
@@ -66,7 +67,7 @@ export default function Home(): React.ReactElement {
 
       {/* Footer */}
       <footer className="border-t border-border px-4 py-8 mt-12">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <p className="text-center text-sm text-muted-foreground">
             Dados fornecidos pela API da Riot Games
           </p>
