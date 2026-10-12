@@ -62,7 +62,7 @@ export function ProfileCard({
   if (isLoading) {
     return (
       <Card className="border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-center h-96">
+        <div className="flex items-center justify-center h-40">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-foreground" />
             <p className="text-muted-foreground">Carregando {displayName}...</p>
@@ -75,7 +75,7 @@ export function ProfileCard({
   if (isError) {
     return (
       <Card className="border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col items-center justify-center h-96 gap-4">
+        <div className="flex flex-col items-center justify-center h-40 gap-4">
           <AlertCircle className="h-8 w-8 text-foreground" />
           <div className="text-center">
             <p className="font-semibold text-foreground">
@@ -110,15 +110,15 @@ export function ProfileCard({
       ? profile.pdlHistory
       : presetPdlHistory;
   return (
-    <Card className="overflow-hidden border-border bg-card shadow-sm transition-colors duration-200 hover:border-foreground/20">
+    <Card className="gap-0 overflow-hidden border-border bg-card py-0 shadow-sm transition-colors duration-200 hover:border-foreground/20">
       <article className="divide-y divide-border">
         {/* Row 1: identity + rank */}
-        <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+        <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div>
-            <h3 className="text-xl font-semibold tracking-tight text-foreground">
+            <h3 className="text-base font-semibold tracking-tight text-foreground">
               {profile.name}
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Nível {profile.summonerLevel}
             </p>
           </div>
@@ -139,7 +139,7 @@ export function ProfileCard({
         {rankInfo && (
           <section
             aria-label="Desempenho no Solo/Duo"
-            className="grid gap-6 px-6 py-4 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)] sm:items-center"
+            className="grid grid-cols-3 gap-x-6 gap-y-3 px-4 py-3 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)] sm:items-center"
           >
             <StatItem
               label="Partidas"
@@ -148,33 +148,32 @@ export function ProfileCard({
             />
             <StatItem label="Vitórias" value={rankInfo.wins} />
             <StatItem label="Derrotas" value={rankInfo.losses} />
-            <WinRateBar wins={rankInfo.wins} losses={rankInfo.losses} />
+            <WinRateBar
+              wins={rankInfo.wins}
+              losses={rankInfo.losses}
+              className="col-span-3 sm:col-span-1"
+            />
           </section>
         )}
 
         {/* Row 3: PDL history */}
-        <section aria-label="Histórico de PDL" className="px-6 py-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">
-                Histórico de PDL
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Evolução do PDL a partir dos registros salvos
-              </p>
-            </div>
+        <section aria-label="Histórico de PDL" className="px-4 py-3">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Histórico de PDL
+            </p>
             <span className="rounded-full border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               {pdlHistory.length} pts
             </span>
           </div>
 
-          <div className="min-h-44 w-full">
+          <div className="h-28 w-full">
             {pdlHistory.length > 1 ? (
               <ResponsiveContainer
                 width="100%"
                 height="100%"
                 minWidth={0}
-                minHeight={176}
+                minHeight={112}
               >
                 <LineChart data={pdlHistory}>
                   <CartesianGrid
@@ -209,20 +208,20 @@ export function ProfileCard({
                   <Line
                     type="monotone"
                     dataKey="leaguePoints"
-                    stroke="var(--foreground)"
+                    stroke="var(--primary)"
                     strokeWidth={2.5}
-                    dot={{ r: 3, fill: 'var(--foreground)', strokeWidth: 0 }}
+                    dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }}
                     activeDot={{
                       r: 5,
                       fill: 'var(--background)',
-                      stroke: 'var(--foreground)',
+                      stroke: 'var(--primary)',
                       strokeWidth: 2,
                     }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
                 Ainda não há registros de PDL suficientes
               </div>
             )}

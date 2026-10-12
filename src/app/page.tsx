@@ -34,9 +34,9 @@ export default function Home(): React.ReactElement {
       </section>
 
       {/* Profiles Grid */}
-      <section aria-labelledby="titulo-perfis" className="px-4 py-12">
+      <section aria-labelledby="titulo-perfis" className="px-4 py-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
+          <div className="mb-4">
             <h2
               id="titulo-perfis"
               className="text-2xl font-semibold tracking-tight text-foreground"
@@ -48,7 +48,7 @@ export default function Home(): React.ReactElement {
             </p>
           </div>
 
-          <ul className="flex flex-col gap-6">
+          <ul className="flex flex-col gap-3">
             {PRESET_SUMMONERS.map((summoner) => (
               <li key={`${summoner.gameName}#${summoner.tagLine}`}>
                 <ProfileCard
@@ -65,7 +65,7 @@ export default function Home(): React.ReactElement {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 px-4 py-8 mt-12">
+      <footer className="border-t border-border px-4 py-8 mt-12">
         <div className="max-w-7xl mx-auto">
           <p className="text-center text-sm text-muted-foreground">
             Dados fornecidos pela API da Riot Games
