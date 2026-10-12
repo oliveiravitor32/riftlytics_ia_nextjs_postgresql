@@ -17,6 +17,7 @@ import {
 } from '@/src/queries/useRankQuery';
 import { Button } from './ui/button';
 import { formatTier } from '@/src/lib/rank-labels';
+import { PlayerAvatar } from './player-avatar';
 import type { LeagueEntry } from '@/src/lib/validators';
 
 type QueueTab = {
@@ -43,6 +44,22 @@ const TIER_ORDER = [
   'CHALLENGER',
 ];
 
+// Top 3 fade from citrus to peach to mist (palette order), 4th+ are neutral
+const PODIUM_STYLES = [
+  {
+    row: 'border-primary/70 bg-linear-to-r from-primary/20 via-card to-card',
+    badge: 'border-primary bg-primary text-primary-foreground',
+  },
+  {
+    row: 'border-accent/60 bg-linear-to-r from-accent/15 via-card to-card',
+    badge: 'border-accent bg-accent text-accent-foreground',
+  },
+  {
+    row: 'border-[#cfd4d7]/50 bg-linear-to-r from-[#cfd4d7]/10 via-card to-card',
+    badge: 'border-[#cfd4d7] bg-[#cfd4d7] text-[#111214]',
+  },
+];
+
 const DIVISION_ORDER = ['IV', 'III', 'II', 'I'];
 
 // Single comparable number: tier weighs most, then division, then LP
@@ -55,6 +72,7 @@ function rankScore(entry: LeagueEntry): number {
 type RankingRow = {
   riotId: string;
   name: string;
+  avatarUrl?: string | null;
   entry: LeagueEntry | null;
   isLoading: boolean;
   isError: boolean;
@@ -118,6 +136,7 @@ export function RankingBoard(): React.ReactElement {
   const rows: RankingRow[] = PRESET_SUMMONERS.map((s, i) => ({
     riotId: `${s.gameName}#${s.tagLine}`,
     name: results[i].data?.name ?? s.gameName,
+    avatarUrl: s.avatarUrl,
     entry: results[i].data?.[tab.field] ?? null,
     isLoading: results[i].isLoading,
     isError: results[i].isError,
@@ -247,21 +266,25 @@ export function RankingBoard(): React.ReactElement {
             const { tier, rank, leaguePoints, wins, losses } = row.entry!;
             const total = wins + losses;
             const winRate = total > 0 ? (wins / total) * 100 : 0;
+            const podium = PODIUM_STYLES[i];
             return (
               <li
                 key={row.riotId}
-                className="flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm"
+                className={cn(
+                  'flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm',
+                  podium?.row
+                )}
               >
                 <span
                   className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-full border border-border text-lg font-semibold',
-                    i === 0 &&
-                      'border-primary bg-primary text-primary-foreground'
+                    'flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-sm font-semibold',
+                    podium?.badge
                   )}
                   aria-label={`${i + 1}º lugar`}
                 >
                   {i + 1}
                 </span>
+                <PlayerAvatar name={row.name} src={row.avatarUrl} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">{row.name}</p>
                   <p className="text-xs text-muted-foreground">

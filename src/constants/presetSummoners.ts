@@ -13,6 +13,8 @@ export type PresetSummoner = {
   tagLine: string;
   gameName: string;
   region: string;
+  /** Player photo; will come from the DB. Falls back to an icon when absent */
+  avatarUrl?: string | null;
   pdlHistory: PdlHistoryPoint[];
 };
 
