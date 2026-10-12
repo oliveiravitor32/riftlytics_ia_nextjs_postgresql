@@ -1,25 +1,32 @@
 /**
- * Sample test file for useProfileQuery hook
- * Shows testing patterns for TanStack Query hooks
+ * useProfileQuery: calls our /api/profile route and handles rate limiting
  */
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
-import { leagueApiService } from '@/src/services/leagueApiService';
+import { isRateLimitError } from '@/src/queries/useRankQuery';
 
-// Mock the League API service
-jest.mock('@/src/services/leagueApiService');
+const fetchMock = jest.fn();
+
+function response(body: unknown, status = 200) {
+  return Promise.resolve({
+    ok: status < 400,
+    status,
+    headers: new Headers(),
+    json: () => Promise.resolve(body),
+  } as Response);
+}
 
 describe('useProfileQuery', () => {
   let queryClient: QueryClient;
 
   beforeEach(() => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock;
     queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-      },
+      defaultOptions: { queries: { retryDelay: 0 } },
     });
   });
 
@@ -27,70 +34,60 @@ describe('useProfileQuery', () => {
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
 
-  it('should fetch profile data successfully', async () => {
-    const mockSummoner = {
-      id: 'test-id',
-      accountId: 'test-account',
-      puuid: 'test-puuid',
-      name: 'TestSummoner',
-      profileIconId: 0,
-      summonerLevel: 30,
-      revisionDate: Date.now(),
-    };
+  it('fetches the profile from /api/profile with the region', async () => {
+    const profile = { name: 'Tester', rankInfo: null, flexRankInfo: null };
+    fetchMock.mockImplementation(() => response(profile));
 
-    const mockLeagueEntry = {
-      summonerId: 'test-id',
-      summonerName: 'TestSummoner',
-      queueType: 'RANKED_SOLO_5x5',
-      tier: 'GOLD',
-      rank: 'II',
-      leaguePoints: 50,
-      wins: 100,
-      losses: 90,
-    };
-
-    (leagueApiService.getSummonerByName as jest.Mock).mockResolvedValue(
-      mockSummoner
+    const { result } = renderHook(
+      () => useProfileQuery('Tester#br1', { region: 'br1' }),
+      { wrapper }
     );
-    (leagueApiService.getLeagueEntries as jest.Mock).mockResolvedValue([
-      mockLeagueEntry,
-    ]);
 
-    const { result } = renderHook(() => useProfileQuery('TestSummoner'), {
-      wrapper,
-    });
-
-    expect(result.current.isLoading).toBe(true);
-
-    await waitFor(() => {
-      expect(result.current.isSuccess).toBe(true);
-    });
-
-    expect(result.current.data).toEqual({
-      ...mockSummoner,
-      rankInfo: mockLeagueEntry,
-    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual(profile);
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/profile/Tester%23br1?region=br1'
+    );
   });
 
-  it('should not fetch when summoner name is null', () => {
+  it('does not fetch when summoner name is null', () => {
     const { result } = renderHook(() => useProfileQuery(null), { wrapper });
 
     expect(result.current.status).toBe('pending');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('should handle errors gracefully', async () => {
-    const error = new Error('Summoner not found');
+  it('429 becomes a rate limit error with retryAfter and is not retried', async () => {
+    fetchMock.mockImplementation(() =>
+      response({ error: 'Rate limit', context: { retryAfter: 12 } }, 429)
+    );
 
-    (leagueApiService.getSummonerByName as jest.Mock).mockRejectedValue(error);
-
-    const { result } = renderHook(() => useProfileQuery('NonExistent'), {
+    const { result } = renderHook(() => useProfileQuery('Tester#br1'), {
       wrapper,
     });
 
-    await waitFor(() => {
-      expect(result.current.isError).toBe(true);
+    await waitFor(() => expect(result.current.isError).toBe(true));
+    expect(isRateLimitError(result.current.error)).toBe(true);
+    expect(
+      isRateLimitError(result.current.error) && result.current.error.retryAfter
+    ).toBe(12);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('other errors are retried (up to 2 times) and expose the message', async () => {
+    fetchMock.mockImplementation(() =>
+      response({ error: 'Summoner not found' }, 500)
+    );
+
+    const { result } = renderHook(() => useProfileQuery('Nope#br1'), {
+      wrapper,
     });
 
-    expect(result.current.error).toBe(error);
-  });
+    // The hook's own backoff is 1s + 2s between attempts
+    await waitFor(() => expect(result.current.isError).toBe(true), {
+      timeout: 5000,
+    });
+    expect(result.current.error?.message).toBe('Summoner not found');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  }, 10_000);
 });

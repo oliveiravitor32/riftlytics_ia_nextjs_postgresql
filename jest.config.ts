@@ -19,6 +19,9 @@ const config: Config = {
 
   testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
 
+  // Real Riot API tests run separately: npm run test:integration
+  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.'],
+
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',
     '!src/**/*.d.ts',
