@@ -24,6 +24,7 @@ import {
 } from '@/src/lib/validators';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { buildGameResumeMatch } from '@/src/lib/match-transformers';
+import { TokenBucketLimiter } from '@/src/lib/rate-limiter';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 
 interface RetryConfig {
@@ -32,18 +33,42 @@ interface RetryConfig {
   multiplier: number;
 }
 
+const RANKED_QUEUES: string[] = [
+  RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO,
+  RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR,
+];
+
+// Shared by every request in this server process. 10% below Riot's dev-key
+// limits so clock drift between us and Riot doesn't cause 429s.
+export const riotLimiter = new TokenBucketLimiter([
+  {
+    capacity: Math.floor(
+      RIOT_API_CONSTANTS.RATE_LIMIT_REQUESTS_PER_SECOND * 0.9
+    ),
+    intervalMs: 1000,
+  },
+  {
+    capacity: Math.floor(
+      RIOT_API_CONSTANTS.RATE_LIMIT_REQUESTS_PER_2_MINUTES * 0.9
+    ),
+    intervalMs: 120_000,
+  },
+]);
+
+// PUUIDs never change, and finished matches never change: cache forever
+const puuidCache = new Map<string, string>();
+const matchCache = new Map<string, Match>();
+
 /**
  * League API Service - Singleton
  */
 class LeagueApiService {
-  private static requestQueue: Promise<void> = Promise.resolve();
   private readonly apiKey: string;
   private readonly platformBaseUrl: string;
   private readonly regionalBaseUrl: string;
   private readonly requestTimeout: number;
   private readonly retryConfig: RetryConfig;
   private requestCount: number = 0;
-  private lastRequestTime: number = 0;
 
   constructor() {
     this.apiKey = config.riotApi.apiKey;
@@ -58,6 +83,26 @@ class LeagueApiService {
 
     // Don't throw at instantiation - API key may not be available on client side
     // Validation will happen when making actual requests
+  }
+
+  /**
+   * Resolve a Riot ID (gameName#tagLine) to its PUUID, cached forever
+   */
+  async getPuuidByRiotId(riotId: string): Promise<string> {
+    const key = riotId.toLowerCase();
+    const cached = puuidCache.get(key);
+    if (cached) return cached;
+
+    const [gameName, tagLine = ''] = riotId.split('#');
+    const url = `${this.regionalBaseUrl}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
+
+    try {
+      const account = await this.makeRequest<{ puuid: string }>(url);
+      puuidCache.set(key, account.puuid);
+      return account.puuid;
+    } catch (error) {
+      this.handleApiError(error, { riotId });
+    }
   }
 
   /**
@@ -231,14 +276,15 @@ class LeagueApiService {
    * Get league entries (rank information) for a summoner
    */
   async getLeagueEntries(
-    summonerId: string,
+    puuid: string,
     region = 'na1'
   ): Promise<LeagueEntry[]> {
-    // Map region code to platform URL
+    // by-summoner was removed by Riot; by-puuid is the current endpoint
+    // https://developer.riotgames.com/apis#league-v4
     const platformUrl = `https://${region}.api.riotgames.com`;
-    const url = `${platformUrl}/lol/league/v4/entries/by-summoner/${summonerId}`;
+    const url = `${platformUrl}${RIOT_API_CONSTANTS.ENDPOINTS.LEAGUE_ENTRIES}/${puuid}`;
 
-    logger.debug('Fetching league entries', { summonerId, region, url });
+    logger.debug('Fetching league entries', { puuid, region, url });
 
     try {
       const response = await this.makeRequest<unknown>(url);
@@ -248,19 +294,20 @@ class LeagueApiService {
               (entry): entry is Record<string, unknown> =>
                 entry != null &&
                 typeof entry === 'object' &&
-                (entry as Record<string, unknown>).queueType ===
-                  RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO
+                RANKED_QUEUES.includes(
+                  (entry as Record<string, unknown>).queueType as string
+                )
             )
             .map((entry) => LeagueEntrySchema.parse(entry))
         : [];
 
       logger.info('League entries fetched', {
-        summonerId,
+        puuid,
         count: validated.length,
       });
       return validated;
     } catch (error) {
-      this.handleApiError(error, { summonerId, region });
+      this.handleApiError(error, { puuid, region });
     }
   }
 
@@ -291,6 +338,9 @@ class LeagueApiService {
    * Get match details
    */
   async getMatchDetails(matchId: string): Promise<Match> {
+    const cached = matchCache.get(matchId);
+    if (cached) return cached;
+
     const url = `${this.regionalBaseUrl}/lol/match/v5/matches/${matchId}`;
 
     logger.debug('Fetching match details', { matchId });
@@ -298,6 +348,7 @@ class LeagueApiService {
     try {
       const response = await this.makeRequest<unknown>(url);
       const validated = MatchSchema.parse(response);
+      matchCache.set(matchId, validated);
 
       logger.info('Match details fetched', { matchId });
       return validated;
@@ -316,11 +367,10 @@ class LeagueApiService {
     fallbackPlayerName?: string
   ): Promise<GameResumeMatch[]> {
     const matchIds = await this.getMatchList(puuid, start, count);
-    const matches: Match[] = [];
-
-    for (const matchId of matchIds) {
-      matches.push(await this.getMatchDetails(matchId));
-    }
+    // Fired together; the rate limiter decides how many go out at once
+    const matches = await Promise.all(
+      matchIds.map((matchId) => this.getMatchDetails(matchId))
+    );
 
     return matches.map((match) =>
       buildGameResumeMatch(match, puuid, fallbackPlayerName)
@@ -331,8 +381,8 @@ class LeagueApiService {
    * Make HTTP request with retry logic and rate limit handling
    */
   private async makeRequest<T>(url: string, attempt: number = 1): Promise<T> {
-    return this.runWithQueue(async () => {
-      try {
+    try {
+      return await riotLimiter.schedule(async () => {
         // Validate API key is available
         if (!this.apiKey) {
           throw new RiotApiError(
@@ -341,9 +391,6 @@ class LeagueApiService {
             { url, attempt }
           );
         }
-
-        // Rate limiting check
-        await this.checkRateLimit();
 
         const response = await fetch(url, {
           method: 'GET',
@@ -355,7 +402,6 @@ class LeagueApiService {
         });
 
         this.requestCount++;
-        this.lastRequestTime = Date.now();
 
         // Check rate limit headers
         const rateLimitHeaders = this.extractRateLimitInfo(response.headers);
@@ -369,58 +415,28 @@ class LeagueApiService {
         }
 
         return (await response.json()) as T;
-      } catch (error) {
-        // Retry logic for transient errors
-        if (
-          attempt < this.retryConfig.maxAttempts &&
-          this.isRetriableError(error)
-        ) {
-          const delayMs =
-            this.retryConfig.baseDelayMs *
-            Math.pow(this.retryConfig.multiplier, attempt - 1);
+      });
+    } catch (error) {
+      // Retry logic for transient errors
+      if (
+        attempt < this.retryConfig.maxAttempts &&
+        this.isRetriableError(error)
+      ) {
+        const delayMs =
+          this.retryConfig.baseDelayMs *
+          Math.pow(this.retryConfig.multiplier, attempt - 1);
 
-          logger.warn('Retrying request', {
-            attempt,
-            delayMs,
-            url,
-          });
+        logger.warn('Retrying request', {
+          attempt,
+          delayMs,
+          url,
+        });
 
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          return this.makeRequest<T>(url, attempt + 1);
-        }
-
-        throw error;
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return this.makeRequest<T>(url, attempt + 1);
       }
-    });
-  }
 
-  private async runWithQueue<T>(task: () => Promise<T>): Promise<T> {
-    const previous = LeagueApiService.requestQueue;
-    let release!: () => void;
-
-    LeagueApiService.requestQueue = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-
-    try {
-      await previous;
-      return await task();
-    } finally {
-      release();
-    }
-  }
-
-  /**
-   * Check if we're approaching rate limit
-   */
-  private async checkRateLimit(): Promise<void> {
-    const timeSinceLastRequest = Date.now() - this.lastRequestTime;
-    const minTimeBetweenRequests =
-      (1000 / RIOT_API_CONSTANTS.RATE_LIMIT_REQUESTS_PER_SECOND) * 1.1; // 10% buffer
-
-    if (timeSinceLastRequest < minTimeBetweenRequests) {
-      const delayMs = minTimeBetweenRequests - timeSinceLastRequest;
-      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      throw error;
     }
   }
 
@@ -453,6 +469,8 @@ class LeagueApiService {
         response.headers.get('Retry-After') || '60',
         10
       );
+      // Our buckets were out of sync with Riot's: stop everyone, not just this call
+      riotLimiter.pause(retryAfter * 1000);
       throw new RateLimitError(retryAfter);
     }
 
@@ -471,7 +489,9 @@ class LeagueApiService {
    * Determine if error should be retried
    */
   private isRetriableError(error: unknown): boolean {
-    if (error instanceof RateLimitError) return true;
+    // Not retried: Retry-After is usually much longer than our backoff,
+    // so retrying would only burn more of the quota
+    if (error instanceof RateLimitError) return false;
     if (error instanceof ExternalServiceError) return true;
     if (error instanceof Error && error.name === 'AbortError') return true;
 

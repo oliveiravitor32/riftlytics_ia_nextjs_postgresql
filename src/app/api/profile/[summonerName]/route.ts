@@ -11,7 +11,6 @@ import {
   getErrorMessage,
   getErrorStatusCode,
 } from '@/src/lib/errors';
-import type { LeagueEntry } from '@/src/lib/validators';
 
 function buildPdlHistory(
   currentLeaguePoints: number | null,
@@ -56,49 +55,34 @@ export async function GET(
 
     logger.info('Profile API: Fetching profile', { summonerName, region });
 
-    // Fetch summoner profile with the specified region
-    const summoner = await leagueApiService.getSummonerByName(
-      decodeURIComponent(summonerName),
-      region
-    );
+    // PUUID first (cached forever), then summoner + rank in parallel.
+    // Match history is intentionally not fetched here (home page).
+    const riotId = decodeURIComponent(summonerName);
+    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
+    const [summoner, leagueEntries] = await Promise.all([
+      leagueApiService.getSummonerByPuuid(puuid, region, riotId),
+      leagueApiService.getLeagueEntries(puuid, region),
+    ]);
 
-    // Fetch league entries (rank info) only if we have a valid encrypted summoner id
-    let leagueEntries: LeagueEntry[] = [];
-    if (summoner.id && summoner.id !== summoner.puuid) {
-      leagueEntries = await leagueApiService.getLeagueEntries(
-        summoner.id,
-        region
-      );
-    } else {
-      logger.warn(
-        'Skipping league entries fetch; missing encrypted summoner id',
-        {
-          summonerId: summoner.id,
-          puuid: summoner.puuid,
-        }
-      );
-    }
+    // Riot não garante a ordem das filas; escolhemos cada uma pelo queueType
+    const soloEntry =
+      leagueEntries.find((e) => e.queueType === 'RANKED_SOLO_5x5') ?? null;
+    const flexEntry =
+      leagueEntries.find((e) => e.queueType === 'RANKED_FLEX_SR') ?? null;
 
-    const pdlHistory = leagueEntries[0]
+    const pdlHistory = soloEntry
       ? buildPdlHistory(
-          leagueEntries[0].leaguePoints,
-          leagueEntries[0].wins,
-          leagueEntries[0].losses
+          soloEntry.leaguePoints,
+          soloEntry.wins,
+          soloEntry.losses
         )
       : [];
 
-    const recentMatches = await leagueApiService.getMatchHistoryByPuuid(
-      summoner.puuid,
-      0,
-      5,
-      summoner.name
-    );
-
     const profile = {
       ...summoner,
-      rankInfo: leagueEntries[0] || null,
+      rankInfo: soloEntry,
+      flexRankInfo: flexEntry,
       pdlHistory,
-      recentMatches,
     };
 
     logger.info('Profile API: Profile fetched successfully', {

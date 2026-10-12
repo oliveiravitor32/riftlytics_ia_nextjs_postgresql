@@ -38,16 +38,15 @@ export async function GET(
       );
     }
 
-    const resolvedSummoner = await leagueApiService.getSummonerByName(
-      decodeURIComponent(summonerName),
-      region
-    );
+    // Only the PUUID is needed (cached forever), not the full summoner
+    const riotId = decodeURIComponent(summonerName);
+    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
 
     const matches = await leagueApiService.getMatchHistoryByPuuid(
-      resolvedSummoner.puuid,
+      puuid,
       start,
       requestedCount,
-      resolvedSummoner.name
+      riotId
     );
 
     const response = {
