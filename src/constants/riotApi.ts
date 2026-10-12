@@ -14,7 +14,7 @@ export const RIOT_API_CONSTANTS = {
     // Regional endpoints (americas, europe, asia, etc.)
     SUMMONER_BY_NAME: '/lol/summoner/v4/summoners/by-name',
     SUMMONER_BY_PUUID: '/lol/summoner/v4/summoners/by-puuid',
-    LEAGUE_ENTRIES: '/lol/league/v4/entries/by-summoner',
+    LEAGUE_ENTRIES: '/lol/league/v4/entries/by-puuid',
     MATCH_LIST: '/lol/match/v5/matches/by-puuid',
     MATCH_DETAILS: '/lol/match/v5/matches',
   } as const,
@@ -89,6 +89,7 @@ export const RIOT_API_CONSTANTS = {
   CACHE_TTL: {
     SUMMONER_PROFILE: 1000 * 60 * 60, // 1 hour
     SUMMONER_RANK: 1000 * 60 * 30, // 30 minutes
+    RANKING: 1000 * 60 * 5, // 5 minutes (ranking page, client + server)
     MATCH_LIST: 1000 * 60 * 15, // 15 minutes
     MATCH_DETAILS: 1000 * 60 * 60 * 24, // 24 hours (matches don't change)
   } as const,

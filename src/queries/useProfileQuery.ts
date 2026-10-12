@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { logger } from '@/src/lib/logger';
+import { ApiRequestError, isRateLimitError } from './useRankQuery';
 
 interface UseProfileQueryOptions {
   enabled?: boolean;
@@ -29,7 +30,24 @@ export function useProfileQuery(
     region = 'na1',
   } = options;
 
-  return useQuery({
+  return useQuery(
+    profileQueryOptions(summonerName, region, { enabled, staleTime, gcTime })
+  );
+}
+
+/**
+ * Shared query options so other screens (e.g. ranking) reuse the same cache
+ */
+export function profileQueryOptions(
+  summonerName: string | null,
+  region: string,
+  {
+    enabled = !!summonerName,
+    staleTime = RIOT_API_CONSTANTS.CACHE_TTL.SUMMONER_PROFILE,
+    gcTime = RIOT_API_CONSTANTS.CACHE_TTL.SUMMONER_PROFILE * 2,
+  }: Omit<UseProfileQueryOptions, 'region'> = {}
+) {
+  return {
     queryKey: ['profile', summonerName, region],
     queryFn: async () => {
       if (!summonerName) {
@@ -49,8 +67,12 @@ export function useProfileQuery(
 
         if (!response.ok) {
           const error = await response.json().catch(() => ({}));
-          throw new Error(
-            error.message || `Failed to fetch profile: ${response.status}`
+          throw new ApiRequestError(
+            error.error ||
+              error.message ||
+              `Falha ao carregar perfil: ${response.status}`,
+            response.status,
+            Number(error.context?.retryAfter) || undefined
           );
         }
 
@@ -69,7 +91,9 @@ export function useProfileQuery(
     enabled,
     staleTime,
     gcTime,
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
+    retry: (failureCount: number, error: Error) =>
+      !isRateLimitError(error) && failureCount < 2,
+    retryDelay: (attemptIndex: number) =>
+      Math.min(1000 * 2 ** attemptIndex, 30000),
+  };
 }
