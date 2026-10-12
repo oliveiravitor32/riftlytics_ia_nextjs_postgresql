@@ -173,10 +173,11 @@ export function ProfileCard({
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Histórico de PDL
             </span>
-            <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              {pdlHistory.length} pts
+            <span className="flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors group-hover:border-primary group-hover:text-primary">
+              <span className="group-open:hidden">Mostrar</span>
+              <span className="hidden group-open:inline">Ocultar</span>
               <ChevronDown
-                className="size-4 transition-transform group-open:rotate-180"
+                className="size-4 transition-transform duration-200 group-open:rotate-180"
                 aria-hidden="true"
               />
             </span>
