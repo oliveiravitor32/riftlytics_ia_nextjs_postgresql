@@ -11,8 +11,12 @@ import { cn } from '@/lib/utils';
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: 'Riftlytics',
-  description: 'Analytics for League of Legends',
+  title: {
+    default: 'Riftlytics',
+    template: '%s | Riftlytics',
+  },
+  description:
+    'Estatísticas e ranking de League of Legends para o seu grupo de amigos',
 };
 
 export default function RootLayout({
@@ -35,7 +39,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             <Header />
-            {children}
+            <main id="conteudo">{children}</main>
           </QueryProvider>
         </ThemeProvider>
       </body>

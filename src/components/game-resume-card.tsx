@@ -48,12 +48,12 @@ type GameResumeCardProps = {
 function resultMeta(result: MatchResult) {
   return result === 'win'
     ? {
-        label: 'Win',
+        label: 'Vitória',
         tone: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
         icon: CheckCircle2,
       }
     : {
-        label: 'Loss',
+        label: 'Derrota',
         tone: 'border-rose-500/20 bg-rose-500/10 text-rose-700 dark:text-rose-300',
         icon: XCircle,
       };
@@ -144,7 +144,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
                   className="size-11 rounded-xl border border-border object-cover opacity-90"
                 />
                 <span className="absolute -bottom-1 -right-1 rounded-full border border-border bg-background px-1 py-0.5 text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
-                  lane
+                  rota
                 </span>
               </div>
 

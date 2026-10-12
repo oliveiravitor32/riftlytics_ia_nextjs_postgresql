@@ -29,7 +29,7 @@ export function RankBadge({
         {tier} {rank}
       </div>
       <div className="text-xs text-muted-foreground">
-        {leaguePoints} <span className="text-foreground/70">LP</span>
+        {leaguePoints} <span className="text-foreground/70">PDL</span>
       </div>
     </div>
   );

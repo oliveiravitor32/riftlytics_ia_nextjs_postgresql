@@ -47,17 +47,17 @@ export function MatchHistoryDialog({
           variant="outline"
           className="w-full rounded-full border-border bg-background text-foreground shadow-sm hover:bg-muted"
         >
-          View full match history
+          Ver histórico completo
           <ChevronDown className="ml-2 size-4" />
         </Button>
       </DialogTrigger>
 
       <DialogContent className="max-h-[85vh] overflow-hidden rounded-3xl">
         <DialogHeader className="border-b border-border px-6 pb-4 pt-6">
-          <DialogTitle>Full Match History</DialogTitle>
+          <DialogTitle>Histórico completo de partidas</DialogTitle>
           <DialogDescription>
-            Showing the next 10 recent matches. The card preview already
-            includes the 5 most recent games.
+            Exibindo as próximas 10 partidas. O card já mostra as{' '}
+            {recentMatches.length} mais recentes.
           </DialogDescription>
         </DialogHeader>
 
@@ -66,7 +66,7 @@ export function MatchHistoryDialog({
             <div className="flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-border bg-background/50">
               <div className="flex items-center gap-3 text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
-                Loading matches...
+                Carregando partidas...
               </div>
             </div>
           ) : additionalMatches.length > 0 ? (
@@ -91,19 +91,19 @@ export function MatchHistoryDialog({
                   {isFetchingMore ? (
                     <>
                       <Loader2 className="mr-2 size-4 animate-spin" />
-                      Loading more
+                      Carregando mais
                     </>
                   ) : hasMore ? (
-                    'Load More'
+                    'Carregar mais'
                   ) : (
-                    'No more matches'
+                    'Não há mais partidas'
                   )}
                 </Button>
               </div>
             </>
           ) : (
             <div className="flex min-h-56 items-center justify-center rounded-2xl border border-dashed border-border bg-background/50 text-sm text-muted-foreground">
-              No additional match history available.
+              Nenhuma partida adicional disponível.
             </div>
           )}
         </div>

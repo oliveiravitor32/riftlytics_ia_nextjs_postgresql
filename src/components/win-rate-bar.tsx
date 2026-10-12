@@ -23,9 +23,9 @@ export function WinRateBar({
   return (
     <div className={cn('flex flex-col gap-2', className)}>
       <div className="flex justify-between text-xs text-muted-foreground">
-        <span className="uppercase tracking-wider">Win Rate</span>
+        <span className="uppercase tracking-wider">Taxa de vitória</span>
         <span className="font-semibold text-foreground">
-          {winRate.toFixed(1)}% ({wins}W {losses}L)
+          {winRate.toFixed(1)}% ({wins}V {losses}D)
         </span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
