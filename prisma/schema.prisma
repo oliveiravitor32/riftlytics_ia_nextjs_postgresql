@@ -1,90 +1,78 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
+// Prisma 7: connection URLs live in prisma.config.ts (migrations) and in
+// src/lib/db.ts (runtime, via the pg driver adapter).
+// https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Player model: stores information about League of Legends players
+// Tracked player (replaces the hardcoded preset list)
 model Player {
-  id               String         @id @default(cuid())
-  summonerName     String         @unique
-  displayName      String
-  puuid            String         @unique
-  summonerId       String         @unique
-  accountId        String         @unique
-  profileIconId    Int
-  summonerLevel    Int
-  
-  // Relations
-  pdlSnapshots     PDLSnapshot[]
-  duoAnalyses      DuoAnalysis[]
-  
-  // Metadata
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  
-  @@index([summonerName])
+  id          String  @id @default(cuid())
+  gameName    String
+  tagLine     String
+  region      String  @default("br1")
+  displayName String
+  // Photo shown on cards and ranking; null falls back to an icon
+  avatarUrl   String?
+  // Riot PUUID, filled on first lookup (never changes)
+  puuid       String? @unique
+  // Hides a player without deleting its history
+  active      Boolean @default(true)
+
+  pdlSnapshots PDLSnapshot[]
+  duoAnalysesA DuoAnalysis[] @relation("DuoPlayer1")
+  duoAnalysesB DuoAnalysis[] @relation("DuoPlayer2")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gameName, tagLine])
   @@map("players")
 }
 
-// PDL (Performance Data Line) Snapshot: daily snapshot of player rank/LP
+// Daily rank snapshot per queue (Phase 2: PDL history charts)
 model PDLSnapshot {
-  id               String         @id @default(cuid())
-  
-  // Relations
-  playerId         String
-  player           Player         @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  
-  // Rank Data
-  rank             String         // DIAMOND, PLATINUM, GOLD, SILVER, BRONZE, IRON
-  tier             Int            // 1-4 (I, II, III, IV)
-  leaguePoints     Int            // 0-100
-  wins             Int
-  losses           Int
-  
-  // Calculated Stats
-  winRate          Float          // wins / (wins + losses) * 100
-  mainRole         String?        // TOP, JUNGLE, MID, ADC, SUPPORT
-  mainChampion     String?        // Champion name
-  
-  // Metadata
-  capturedAt       DateTime       @default(now())
-  
-  @@unique([playerId, capturedAt])
-  @@index([playerId, capturedAt])
-  @@index([capturedAt])
+  id       String @id @default(cuid())
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  queueType    String // RANKED_SOLO_5x5 | RANKED_FLEX_SR
+  tier         String // IRON ... CHALLENGER
+  rank         String // I, II, III, IV
+  leaguePoints Int
+  wins         Int
+  losses       Int
+
+  capturedAt DateTime @default(now())
+
+  @@unique([playerId, queueType, capturedAt])
+  @@index([playerId, queueType, capturedAt])
   @@map("pdl_snapshots")
 }
 
-// DuoAnalysis: AI-generated analysis for duo compatibility (Phase 3)
+// AI duo compatibility analysis (Phase 3)
 model DuoAnalysis {
-  id                    String     @id @default(cuid())
-  
-  // Relations
-  player1Id             String
-  player1               Player     @relation(fields: [player1Id], references: [id], onDelete: Cascade)
-  player2Id             String
-  
-  // Analysis Data
-  compatibilityScore    Float      // 1-10 score
-  strengths             String     // AI-generated analysis
-  weaknesses            String
-  recommendations       String
-  
-  // Cache Management
-  cachedUntil           DateTime   // When to refresh analysis
-  
-  // Metadata
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
-  
+  id        String @id @default(cuid())
+  player1Id String
+  player1   Player @relation("DuoPlayer1", fields: [player1Id], references: [id], onDelete: Cascade)
+  player2Id String
+  player2   Player @relation("DuoPlayer2", fields: [player2Id], references: [id], onDelete: Cascade)
+
+  compatibilityScore Float // 1-10
+  strengths          String
+  weaknesses         String
+  recommendations    String
+
+  cachedUntil DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   @@unique([player1Id, player2Id])
-  @@index([player1Id])
   @@map("duo_analyses")
 }
