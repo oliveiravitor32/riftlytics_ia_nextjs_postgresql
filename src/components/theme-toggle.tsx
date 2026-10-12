@@ -1,12 +1,18 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { Sun, Moon } from 'lucide-react';
-import { Button } from './ui/button';
+import { Monitor, Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+
+const OPTIONS = [
+  { value: 'system', label: 'Tema do sistema', icon: Monitor },
+  { value: 'light', label: 'Tema claro', icon: Sun },
+  { value: 'dark', label: 'Tema escuro', icon: Moon },
+] as const;
 
 export default function ThemeToggle() {
-  const { setTheme, resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -14,19 +20,37 @@ export default function ThemeToggle() {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
-
-  const isDark = resolvedTheme === 'dark';
+  // Same footprint before mount so the header doesn't shift
+  const current = mounted ? (theme ?? 'system') : null;
 
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      aria-label="Mudar tema de cores"
-      onClick={() => setTheme(isDark ? 'light' : 'dark')}
-      className="size-11 rounded-full border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted"
+    <div
+      role="radiogroup"
+      aria-label="Tema de cores"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5"
     >
-      {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
-    </Button>
+      {OPTIONS.map(({ value, label, icon: Icon }) => {
+        const selected = current === value;
+        return (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            aria-label={label}
+            title={label}
+            onClick={() => setTheme(value)}
+            className={cn(
+              'flex size-7 items-center justify-center rounded-md transition-colors',
+              selected
+                ? 'bg-secondary text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Icon className="size-4" aria-hidden="true" />
+          </button>
+        );
+      })}
+    </div>
   );
 }

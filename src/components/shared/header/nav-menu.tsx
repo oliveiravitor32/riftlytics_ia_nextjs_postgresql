@@ -2,46 +2,39 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  navigationMenuTriggerStyle,
-} from '../../ui/navigation-menu';
+import { cn } from '@/lib/utils';
 
 const navItems = [
+  { label: 'Início', href: '/' },
   { label: 'Ranking', href: '/ranking' },
-  { label: 'Dá duo?', href: '/' },
-  { label: 'Dados estatísticos', href: '/' },
 ];
 
 export default function NavMenu() {
   const pathname = usePathname();
 
   return (
-    <NavigationMenu aria-label="Navegação principal">
-      <NavigationMenuList className="gap-4">
+    <nav aria-label="Navegação principal">
+      <ul className="flex items-center gap-4">
         {navItems.map((item) => {
-          const isActive = item.href !== '/' && pathname === item.href;
+          const isActive = pathname === item.href;
           return (
-            <NavigationMenuItem key={item.label}>
-              <NavigationMenuLink
-                asChild
-                active={isActive}
-                className={navigationMenuTriggerStyle()}
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'text-sm transition-colors hover:text-foreground',
+                  isActive
+                    ? 'font-medium text-foreground'
+                    : 'text-muted-foreground'
+                )}
               >
-                <Link
-                  href={item.href}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  {item.label}
-                </Link>
-              </NavigationMenuLink>
-            </NavigationMenuItem>
+                {item.label}
+              </Link>
+            </li>
           );
         })}
-      </NavigationMenuList>
-    </NavigationMenu>
+      </ul>
+    </nav>
   );
 }

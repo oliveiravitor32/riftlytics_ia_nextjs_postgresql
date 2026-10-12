@@ -5,13 +5,13 @@ import Link from 'next/link';
 
 export default function Logo() {
   return (
-    <Link href="/" className="py-3" aria-label="Riftlytics, página inicial">
+    <Link href="/" className="shrink-0" aria-label="Riftlytics, página inicial">
       <div className="block dark:hidden">
         <Image
           src={logoDark}
           alt=""
-          width={140}
-          className="h-auto w-35"
+          width={112}
+          className="h-auto w-28"
           priority
         />
       </div>
@@ -19,8 +19,8 @@ export default function Logo() {
         <Image
           src={logoLight}
           alt=""
-          width={140}
-          className="h-auto w-35"
+          width={112}
+          className="h-auto w-28"
           priority
         />
       </div>
