@@ -17,12 +17,11 @@ import {
   Tooltip,
 } from 'recharts';
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
+import { isRateLimitError } from '@/src/queries/useRankQuery';
 import { RankBadge } from './rank-badge';
 import { StatItem } from './stat-item';
 import { WinRateBar } from './win-rate-bar';
 import { Card } from './ui/card';
-import GameResumeCard, { type GameResumeMatch } from './game-resume-card';
-import { MatchHistoryDialog } from './match-history-dialog';
 
 interface ProfileCardProps {
   gameName: string;
@@ -38,7 +37,7 @@ type PdlHistoryPoint = {
 };
 
 function formatChartLabel(value: string): string {
-  return new Date(value).toLocaleDateString('en-US', {
+  return new Date(value).toLocaleDateString('pt-BR', {
     month: 'short',
     day: 'numeric',
   });
@@ -66,7 +65,7 @@ export function ProfileCard({
         <div className="flex items-center justify-center h-96">
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="h-8 w-8 animate-spin text-foreground" />
-            <p className="text-muted-foreground">Loading {displayName}...</p>
+            <p className="text-muted-foreground">Carregando {displayName}...</p>
           </div>
         </div>
       </Card>
@@ -80,10 +79,16 @@ export function ProfileCard({
           <AlertCircle className="h-8 w-8 text-foreground" />
           <div className="text-center">
             <p className="font-semibold text-foreground">
-              Failed to load profile
+              {isRateLimitError(error)
+                ? 'Muitas consultas seguidas'
+                : 'Falha ao carregar o perfil'}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {error instanceof Error ? error.message : 'Unknown error'}
+              {isRateLimitError(error)
+                ? `A Riot limitou nossas requisições por um instante. Recarregue a página em ${error.retryAfter ?? 60}s.`
+                : error instanceof Error
+                  ? error.message
+                  : 'Erro desconhecido'}
             </p>
           </div>
         </div>
@@ -94,7 +99,7 @@ export function ProfileCard({
   if (!profile) {
     return (
       <Card className="border-border bg-card p-6 shadow-sm">
-        <p className="text-muted-foreground">No profile data</p>
+        <p className="text-muted-foreground">Sem dados de perfil</p>
       </Card>
     );
   }
@@ -104,197 +109,126 @@ export function ProfileCard({
     profile.pdlHistory && profile.pdlHistory.length > 0
       ? profile.pdlHistory
       : presetPdlHistory;
-  const recentMatches: GameResumeMatch[] = profile.recentMatches || [];
-  const winRate = rankInfo
-    ? (rankInfo.wins / (rankInfo.wins + rankInfo.losses)) * 100
-    : 0;
-
   return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md">
-        {/* Header with summoner name */}
-        <div className="border-b border-border px-6 py-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-semibold tracking-tight text-foreground">
-                {profile.name}
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Level {profile.summonerLevel}
-              </p>
-            </div>
-            {rankInfo && (
-              <RankBadge
-                tier={rankInfo.tier}
-                rank={rankInfo.rank}
-                leaguePoints={rankInfo.leaguePoints}
-              />
-            )}
+    <Card className="overflow-hidden border-border bg-card shadow-sm transition-colors duration-200 hover:border-foreground/20">
+      <article className="divide-y divide-border">
+        {/* Row 1: identity + rank */}
+        <header className="flex flex-wrap items-center justify-between gap-4 px-6 py-4">
+          <div>
+            <h3 className="text-xl font-semibold tracking-tight text-foreground">
+              {profile.name}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Nível {profile.summonerLevel}
+            </p>
           </div>
-        </div>
-
-        {/* Main content */}
-        <div className="space-y-6 p-6">
           {rankInfo ? (
-            <>
-              <WinRateBar wins={rankInfo.wins} losses={rankInfo.losses} />
-
-              <div className="grid grid-cols-2 gap-6">
-                <StatItem label="Wins" value={rankInfo.wins} highlight />
-                <StatItem label="Losses" value={rankInfo.losses} />
-              </div>
-
-              <div className="rounded-2xl border border-border bg-muted/50 p-4 space-y-3">
-                <StatItem
-                  label="Win Rate"
-                  value={winRate.toFixed(1)}
-                  unit="%"
-                  highlight
-                />
-                <StatItem
-                  label="Record"
-                  value={`${rankInfo.wins} - ${rankInfo.losses}`}
-                />
-              </div>
-            </>
+            <RankBadge
+              tier={rankInfo.tier}
+              rank={rankInfo.rank}
+              leaguePoints={rankInfo.leaguePoints}
+            />
           ) : (
-            <div className="py-2 text-center">
-              <p className="text-muted-foreground">
-                Not yet ranked in Solo/Duo
+            <p className="text-sm text-muted-foreground">
+              Ainda sem ranque no Solo/Duo
+            </p>
+          )}
+        </header>
+
+        {/* Row 2: record + win rate bar */}
+        {rankInfo && (
+          <section
+            aria-label="Desempenho no Solo/Duo"
+            className="grid gap-6 px-6 py-4 sm:grid-cols-[auto_auto_auto_minmax(0,1fr)] sm:items-center"
+          >
+            <StatItem
+              label="Partidas"
+              value={rankInfo.wins + rankInfo.losses}
+              highlight
+            />
+            <StatItem label="Vitórias" value={rankInfo.wins} />
+            <StatItem label="Derrotas" value={rankInfo.losses} />
+            <WinRateBar wins={rankInfo.wins} losses={rankInfo.losses} />
+          </section>
+        )}
+
+        {/* Row 3: PDL history */}
+        <section aria-label="Histórico de PDL" className="px-6 py-4">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                Histórico de PDL
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Evolução do PDL a partir dos registros salvos
               </p>
             </div>
-          )}
-
-          <div className="rounded-2xl border border-border bg-background/80 p-4 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  PDL History
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  LP trend from stored snapshots
-                </p>
-              </div>
-              <span className="rounded-full border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                {pdlHistory.length} pts
-              </span>
-            </div>
-
-            <div className="min-h-44 w-full">
-              {pdlHistory.length > 1 ? (
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                  minWidth={0}
-                  minHeight={176}
-                >
-                  <LineChart data={pdlHistory}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="var(--border)"
-                      vertical={false}
-                    />
-                    <XAxis
-                      dataKey="capturedAt"
-                      tickFormatter={formatChartLabel}
-                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                      axisLine={{ stroke: 'var(--border)' }}
-                      tickLine={false}
-                      minTickGap={18}
-                    />
-                    <YAxis
-                      tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                      axisLine={{ stroke: 'var(--border)' }}
-                      tickLine={false}
-                      width={32}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--background)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 12,
-                        color: 'var(--foreground)',
-                      }}
-                      labelFormatter={(label) =>
-                        formatChartLabel(String(label))
-                      }
-                      formatter={(value) => [`${value} LP`, 'League Points']}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="leaguePoints"
-                      stroke="var(--foreground)"
-                      strokeWidth={2.5}
-                      dot={{ r: 3, fill: 'var(--foreground)', strokeWidth: 0 }}
-                      activeDot={{
-                        r: 5,
-                        fill: 'var(--background)',
-                        stroke: 'var(--foreground)',
-                        strokeWidth: 2,
-                      }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                  Not enough PDL snapshots yet
-                </div>
-              )}
-            </div>
+            <span className="rounded-full border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              {pdlHistory.length} pts
+            </span>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold tracking-tight text-foreground">
-                  Recent Matches
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  The five most recent full match cards
-                </p>
-              </div>
-              <span className="rounded-full border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-                {recentMatches.length} shown
-              </span>
-            </div>
-
-            {recentMatches.length > 0 ? (
-              <div className="space-y-4">
-                {recentMatches.slice(0, 5).map((match) => (
-                  <GameResumeCard
-                    key={
-                      match.matchId ??
-                      `${match.playerName}-${match.duration}-${match.queue}`
-                    }
-                    match={match}
+          <div className="min-h-44 w-full">
+            {pdlHistory.length > 1 ? (
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+                minWidth={0}
+                minHeight={176}
+              >
+                <LineChart data={pdlHistory}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--border)"
+                    vertical={false}
                   />
-                ))}
-              </div>
+                  <XAxis
+                    dataKey="capturedAt"
+                    tickFormatter={formatChartLabel}
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                    axisLine={{ stroke: 'var(--border)' }}
+                    tickLine={false}
+                    minTickGap={18}
+                  />
+                  <YAxis
+                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
+                    axisLine={{ stroke: 'var(--border)' }}
+                    tickLine={false}
+                    width={32}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--background)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 12,
+                      color: 'var(--foreground)',
+                    }}
+                    labelFormatter={(label) => formatChartLabel(String(label))}
+                    formatter={(value) => [`${value} PDL`, 'Pontos de liga']}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="leaguePoints"
+                    stroke="var(--foreground)"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: 'var(--foreground)', strokeWidth: 0 }}
+                    activeDot={{
+                      r: 5,
+                      fill: 'var(--background)',
+                      stroke: 'var(--foreground)',
+                      strokeWidth: 2,
+                    }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             ) : (
-              <div className="rounded-2xl border border-dashed border-border bg-background/60 p-6 text-center text-sm text-muted-foreground">
-                No recent match history available yet.
+              <div className="flex min-h-44 items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
+                Ainda não há registros de PDL suficientes
               </div>
             )}
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="border-t border-border bg-muted/30 px-6 py-3">
-          <p className="text-center text-xs text-muted-foreground">
-            Last updated just now
-          </p>
-        </div>
-      </Card>
-
-      {recentMatches.length > 0 && (
-        <div className="px-1 pb-2">
-          <MatchHistoryDialog
-            summonerName={summonerId}
-            region={region}
-            recentMatches={recentMatches.slice(0, 5)}
-          />
-        </div>
-      )}
-    </div>
+        </section>
+      </article>
+    </Card>
   );
 }
