@@ -5,8 +5,8 @@
 
 'use client';
 
-import React from 'react';
-import { Loader2, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -19,6 +19,7 @@ import {
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
 import { isRateLimitError } from '@/src/queries/useRankQuery';
 import { RankBadge } from './rank-badge';
+import { PlayerAvatar } from './player-avatar';
 import { StatItem } from './stat-item';
 import { WinRateBar } from './win-rate-bar';
 import { Card } from './ui/card';
@@ -28,6 +29,7 @@ interface ProfileCardProps {
   tagLine: string;
   displayName: string;
   region?: string;
+  avatarUrl?: string | null;
   pdlHistory?: PdlHistoryPoint[];
 }
 
@@ -48,8 +50,11 @@ export function ProfileCard({
   tagLine,
   displayName,
   region = 'na1',
+  avatarUrl,
   pdlHistory: presetPdlHistory = [],
 }: ProfileCardProps): React.ReactElement {
+  // The chart only mounts once the section is opened (closed by default)
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Construct the full summoner ID (gameName#tagLine)
   const summonerId = `${gameName}#${tagLine}`;
   const {
@@ -114,13 +119,16 @@ export function ProfileCard({
       <article className="divide-y divide-border">
         {/* Row 1: identity + rank */}
         <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div>
-            <h3 className="text-base font-semibold tracking-tight text-foreground">
-              {profile.name}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Nível {profile.summonerLevel}
-            </p>
+          <div className="flex items-center gap-3">
+            <PlayerAvatar name={profile.name} src={avatarUrl} />
+            <div>
+              <h3 className="text-base font-semibold tracking-tight text-foreground">
+                {profile.name}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Nível {profile.summonerLevel}
+              </p>
+            </div>
           </div>
           {rankInfo ? (
             <RankBadge
@@ -157,18 +165,25 @@ export function ProfileCard({
         )}
 
         {/* Row 3: PDL history */}
-        <section aria-label="Histórico de PDL" className="px-4 py-3">
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        <details
+          className="group"
+          onToggle={(e) => setHistoryOpen(e.currentTarget.open)}
+        >
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Histórico de PDL
-            </p>
-            <span className="rounded-full border border-border bg-background px-2 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-              {pdlHistory.length} pts
             </span>
-          </div>
+            <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              {pdlHistory.length} pts
+              <ChevronDown
+                className="size-4 transition-transform group-open:rotate-180"
+                aria-hidden="true"
+              />
+            </span>
+          </summary>
 
-          <div className="h-28 w-full">
-            {pdlHistory.length > 1 ? (
+          <div className="h-28 w-full px-4 pb-3">
+            {!historyOpen ? null : pdlHistory.length > 1 ? (
               <ResponsiveContainer
                 width="100%"
                 height="100%"
@@ -226,7 +241,7 @@ export function ProfileCard({
               </div>
             )}
           </div>
-        </section>
+        </details>
       </article>
     </Card>
   );
