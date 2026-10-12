@@ -24,8 +24,11 @@ export type Summoner = z.infer<typeof SummonerSchema>;
  * League entry (rank information)
  */
 export const LeagueEntrySchema = z.object({
-  summonerId: z.string(),
-  summonerName: z.string(),
+  // league-v4 by-puuid responses identify the player by puuid;
+  // summonerId/summonerName are legacy and may be missing
+  puuid: z.string().optional(),
+  summonerId: z.string().optional(),
+  summonerName: z.string().optional(),
   queueType: z.string(),
   tier: z.string(),
   rank: z.string(),

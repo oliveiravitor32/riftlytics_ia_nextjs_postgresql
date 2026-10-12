@@ -95,7 +95,7 @@ export const handlers = [
 
   // Get league entries
   http.get(
-    `${config.riotApi.platformBaseUrl}/lol/league/v4/entries/by-summoner/:summonerId`,
+    `${config.riotApi.platformBaseUrl}/lol/league/v4/entries/by-puuid/:puuid`,
     () => {
       return HttpResponse.json([mockLeagueEntry]);
     }
