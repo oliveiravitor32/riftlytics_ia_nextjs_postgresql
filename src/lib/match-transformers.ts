@@ -165,26 +165,38 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function queueLabel(queueId: number): string {
-  if (queueId === 420) return 'Solo Ranked';
-  if (queueId === 440) return 'Flex Ranked';
-  if (queueId === 450) return 'ARAM';
-  return `Queue ${queueId}`;
+  switch (queueId) {
+    case 420:
+      return 'Ranqueada Solo/Duo';
+    case 440:
+      return 'Ranqueada Flex';
+    case 400:
+    case 430:
+    case 490:
+      return 'Normal';
+    case 450:
+      return 'ARAM';
+    case 1700:
+      return 'Arena';
+    default:
+      return `Fila ${queueId}`;
+  }
 }
 
 function roleLabel(position?: string | null): string {
   switch (position) {
     case 'TOP':
-      return 'Top lane';
+      return 'Topo';
     case 'JUNGLE':
-      return 'Jungle';
+      return 'Selva';
     case 'MIDDLE':
-      return 'Mid lane';
+      return 'Meio';
     case 'BOTTOM':
-      return 'ADC';
+      return 'Atirador';
     case 'UTILITY':
-      return 'Support';
+      return 'Suporte';
     default:
-      return 'Solo lane';
+      return 'Outra';
   }
 }
 

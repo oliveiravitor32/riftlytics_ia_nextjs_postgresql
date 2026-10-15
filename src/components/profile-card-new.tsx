@@ -7,15 +7,6 @@
 
 import React, { useState } from 'react';
 import { Loader2, AlertCircle, ChevronDown } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
 import { isRateLimitError } from '@/src/queries/useRankQuery';
 import { RankBadge } from './rank-badge';
@@ -23,6 +14,9 @@ import { PlayerAvatar } from './player-avatar';
 import { StatItem } from './stat-item';
 import { WinRateBar } from './win-rate-bar';
 import { Card } from './ui/card';
+import { PdlChart, type PdlHistoryPoint } from './pdl-chart';
+import { profileHref } from '@/src/lib/riot-id';
+import Link from 'next/link';
 
 interface ProfileCardProps {
   gameName: string;
@@ -30,18 +24,6 @@ interface ProfileCardProps {
   displayName: string;
   region?: string;
   avatarUrl?: string | null;
-}
-
-type PdlHistoryPoint = {
-  capturedAt: string;
-  leaguePoints: number;
-};
-
-function formatChartLabel(value: string): string {
-  return new Date(value).toLocaleDateString('pt-BR', {
-    month: 'short',
-    day: 'numeric',
-  });
 }
 
 export function ProfileCard({
@@ -118,7 +100,12 @@ export function ProfileCard({
             <PlayerAvatar name={profile.name} src={avatarUrl} />
             <div>
               <h3 className="text-base font-semibold tracking-tight text-foreground">
-                {profile.name}
+                <Link
+                  href={profileHref(region, gameName, tagLine)}
+                  className="hover:text-primary hover:underline"
+                >
+                  {profile.name}
+                </Link>
               </h3>
               <p className="text-xs text-muted-foreground">
                 Nível {profile.summonerLevel}
@@ -178,64 +165,8 @@ export function ProfileCard({
             </span>
           </summary>
 
-          <div className="h-28 w-full px-4 pb-3">
-            {!historyOpen ? null : pdlHistory.length > 1 ? (
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-                minWidth={0}
-                minHeight={112}
-              >
-                <LineChart data={pdlHistory}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="capturedAt"
-                    tickFormatter={formatChartLabel}
-                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                    axisLine={{ stroke: 'var(--border)' }}
-                    tickLine={false}
-                    minTickGap={18}
-                  />
-                  <YAxis
-                    tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }}
-                    axisLine={{ stroke: 'var(--border)' }}
-                    tickLine={false}
-                    width={32}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--background)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 12,
-                      color: 'var(--foreground)',
-                    }}
-                    labelFormatter={(label) => formatChartLabel(String(label))}
-                    formatter={(value) => [`${value} PDL`, 'Pontos de liga']}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="leaguePoints"
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: 'var(--primary)', strokeWidth: 0 }}
-                    activeDot={{
-                      r: 5,
-                      fill: 'var(--background)',
-                      stroke: 'var(--primary)',
-                      strokeWidth: 2,
-                    }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border text-sm text-muted-foreground">
-                Ainda não há registros de PDL suficientes
-              </div>
-            )}
+          <div className="w-full px-4 pb-3">
+            {historyOpen && <PdlChart data={pdlHistory} />}
           </div>
         </details>
       </article>

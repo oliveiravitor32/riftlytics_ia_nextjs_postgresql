@@ -26,3 +26,23 @@ export async function getActivePlayers(): Promise<TrackedPlayer[]> {
     },
   });
 }
+
+/** Tracked player by Riot ID (case-insensitive), or null if not in the group */
+export async function findTrackedPlayer(
+  gameName: string,
+  tagLine: string
+): Promise<TrackedPlayer | null> {
+  return prisma.player.findFirst({
+    where: {
+      gameName: { equals: gameName, mode: 'insensitive' },
+      tagLine: { equals: tagLine, mode: 'insensitive' },
+    },
+    select: {
+      gameName: true,
+      tagLine: true,
+      region: true,
+      displayName: true,
+      avatarUrl: true,
+    },
+  });
+}
