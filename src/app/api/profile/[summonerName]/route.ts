@@ -6,35 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { leagueApiService } from '@/src/services/leagueApiService';
 import { logger } from '@/src/lib/logger';
+import { getPdlHistory } from '@/src/services/snapshotService';
 import {
   isAppError,
   getErrorMessage,
   getErrorStatusCode,
 } from '@/src/lib/errors';
-
-function buildPdlHistory(
-  currentLeaguePoints: number | null,
-  wins: number,
-  losses: number
-) {
-  if (currentLeaguePoints === null) {
-    return [];
-  }
-
-  const spread = Math.max(
-    4,
-    Math.min(18, Math.round(Math.abs(wins - losses) / 8) + 4)
-  );
-  const trend = wins >= losses ? 1 : -1;
-  const base = Math.max(0, currentLeaguePoints - spread * 3);
-
-  return Array.from({ length: 7 }, (_, index) => ({
-    capturedAt: new Date(
-      Date.now() - (6 - index) * 24 * 60 * 60 * 1000
-    ).toISOString(),
-    leaguePoints: Math.max(0, base + index * spread * trend),
-  }));
-}
 
 export async function GET(
   request: NextRequest,
@@ -59,9 +36,12 @@ export async function GET(
     // Match history is intentionally not fetched here (home page).
     const riotId = decodeURIComponent(summonerName);
     const puuid = await leagueApiService.getPuuidByRiotId(riotId);
-    const [summoner, leagueEntries] = await Promise.all([
+    const [gameName, tagLine = ''] = riotId.split('#');
+    const [summoner, leagueEntries, pdlHistory] = await Promise.all([
       leagueApiService.getSummonerByPuuid(puuid, region, riotId),
       leagueApiService.getLeagueEntries(puuid, region),
+      // Real daily snapshots from the DB (empty until the cron has run)
+      getPdlHistory(gameName, tagLine),
     ]);
 
     // Riot não garante a ordem das filas; escolhemos cada uma pelo queueType
@@ -69,14 +49,6 @@ export async function GET(
       leagueEntries.find((e) => e.queueType === 'RANKED_SOLO_5x5') ?? null;
     const flexEntry =
       leagueEntries.find((e) => e.queueType === 'RANKED_FLEX_SR') ?? null;
-
-    const pdlHistory = soloEntry
-      ? buildPdlHistory(
-          soloEntry.leaguePoints,
-          soloEntry.wins,
-          soloEntry.losses
-        )
-      : [];
 
     const profile = {
       ...summoner,

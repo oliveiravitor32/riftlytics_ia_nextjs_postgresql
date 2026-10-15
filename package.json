@@ -19,6 +19,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "pdl:snapshot": "node scripts/pdl-snapshot.mjs",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prepare": "husky install"
