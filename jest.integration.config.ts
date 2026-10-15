@@ -19,4 +19,17 @@ const config: Config = {
   testTimeout: 60_000,
 };
 
-export default createJestConfig(config);
+// Prisma 7 loads its query compiler as ESM (.mjs) at query time, so it must
+// be transformed; next/jest ignores all of node_modules by default.
+export default async () => {
+  const resolved = await createJestConfig(config)();
+  return {
+    ...resolved,
+    transformIgnorePatterns: (resolved.transformIgnorePatterns ?? []).map(
+      (pattern) =>
+        pattern.startsWith('/node_modules/')
+          ? '/node_modules/(?!(\\.pnpm|@prisma)/)'
+          : pattern
+    ),
+  };
+};

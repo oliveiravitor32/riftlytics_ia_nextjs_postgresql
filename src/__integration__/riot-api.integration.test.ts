@@ -3,13 +3,16 @@
  * Calls our route handlers and service exactly as production does — no mocks.
  * Run: npm run test:integration  (needs RIOT_API_KEY in .env.local)
  *
- * Quota: ~35 requests per run (Riot dev key: 100 per 2 min).
+ * Quota: ~50 requests per run (Riot dev key: 100 per 2 min).
+ * The cron test writes today's snapshots to the real database (idempotent).
  */
 
 import { NextRequest } from 'next/server';
 import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
+import { GET as runSnapshotCron } from '@/src/app/api/cron/pdl-snapshot/route';
+import { getPdlHistory } from '@/src/services/snapshotService';
 import { leagueApiService } from '@/src/services/leagueApiService';
 import { clearRankCache } from '@/src/lib/rank-cache';
 
@@ -169,6 +172,45 @@ describe('GET /api/matches/[summonerName]', () => {
       expect(m.matchId).toMatch(/^[A-Z0-9]+_\d+$/);
       expect(m.kda).toMatch(/^\d+\/\d+\/\d+$/);
     });
+  });
+});
+
+describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
+  const cronRequest = (token?: string) =>
+    new NextRequest('http://localhost/api/cron/pdl-snapshot', {
+      headers: token ? { authorization: `Bearer ${token}` } : {},
+    });
+
+  it('rejects calls without the CRON_SECRET', async () => {
+    expect((await runSnapshotCron(cronRequest())).status).toBe(401);
+    expect((await runSnapshotCron(cronRequest('wrong'))).status).toBe(401);
+  });
+
+  it('stores today snapshot for every active player (idempotent)', async () => {
+    const res = await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.failed).toEqual([]);
+    expect(body.snapshots).toBeGreaterThan(0);
+
+    // Re-running on the same day updates instead of adding points
+    const before = await getPdlHistory(player.gameName, player.tagLine);
+    await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
+    const after = await getPdlHistory(player.gameName, player.tagLine);
+    expect(after).toHaveLength(before.length);
+  });
+
+  it('profile route returns the stored history', async () => {
+    const body = await (await getProfile(request('profile'), params())).json();
+
+    expect(body.pdlHistory.length).toBeGreaterThan(0);
+    body.pdlHistory.forEach(
+      (p: { capturedAt: string; leaguePoints: number }) => {
+        expect(p.capturedAt).toMatch(/T00:00:00\.000Z$/);
+        expect(p.leaguePoints).toEqual(expect.any(Number));
+      }
+    );
   });
 });
 
