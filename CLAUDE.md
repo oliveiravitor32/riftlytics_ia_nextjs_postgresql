@@ -56,12 +56,15 @@
 
 **Goal**: Display preset profiles (op.gg-like interface) with profile data, match history, and performance analysis
 
-- [ ] Hardcode preset summoner names (you + friends)
-- [ ] Create `/api/profile/[summonerName]` endpoint (fetches live League API data)
-- [ ] Create `/api/matches/[summonerName]` endpoint (fetches recent match data)
-- [ ] Design database schema for PDL snapshots (not full match history)
-- [ ] Build UI components (ProfileCard, MatchCard, StatsCard, Header)
-- [ ] Implement TanStack Query hooks for profile/match data
+- [x] Tracked players stored in the DB (`players` table, seeded)
+- [x] Create `/api/profile/[summonerName]` endpoint (summoner + Solo/Flex rank, no matches)
+- [x] Create `/api/matches/[summonerName]` endpoint (paginated match history)
+- [x] Create `/api/rank/[summonerName]` endpoint (ranking page, 5-min server cache)
+- [x] Design database schema for PDL snapshots (not full match history)
+- [x] Build UI components (ProfileCard, RankingBoard, Header, PlayerAvatar)
+- [x] Implement TanStack Query hooks for profile/rank/match data
+- [ ] Profile page (match history, champions, roles)
+- [ ] Side-by-side comparison
 - [ ] Deploy to production with basic monitoring
 
 **Deliverables**:
@@ -158,72 +161,20 @@
 
 ---
 
-## 📊 Database Schema (Prisma) - MVP Version
+## 📊 Database Schema (Prisma)
 
-```prisma
-model Player {
-  id              String    @id @default(cuid())
-  summonerName    String    @unique              // Summoner name from Riot API
-  riotId          String    @unique              // Puuid from Riot API
-  displayName     String                         // Display name for UI
+Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
-  pdlSnapshots    PDLSnapshot[]                  // Historical rank/LP data
-  duoAnalyses     DuoAnalysis[]                  // For Phase 3
+- **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and capture time: `tier`, `rank`, `leaguePoints`, `wins`, `losses`.
+- **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-}
+### Database Approach
 
-// PDL = Performance Data Line (daily snapshots)
-model PDLSnapshot {
-  id              String    @id @default(cuid())
-  playerId        String
-  player          Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
-
-  // Rank Data
-  rank            String                         // DIAMOND, PLATINUM, GOLD, etc
-  tier            Int                            // 1-4 (I-IV)
-  leaguePoints    Int                            // 0-100
-  wins            Int
-  losses          Int
-
-  // Stats
-  winRate         Float                          // Calculated: wins / (wins + losses) * 100
-  mainRole        String?                        // TOP, JUNGLE, MID, ADC, SUPPORT
-  mainChampion    String?                        // Most played champion
-
-  // Metadata
-  capturedAt      DateTime  @default(now())     // When this snapshot was taken
-
-  @@unique([playerId, capturedAt])
-  @@index([playerId, capturedAt])
-}
-
-model DuoAnalysis {
-  id              String    @id @default(cuid())
-  player1Id       String
-  player1         Player    @relation(fields: [player1Id], references: [id], onDelete: Cascade)
-  player2Id       String
-
-  compatibilityScore Float   // 1-10
-  strengths       String    // AI-generated analysis
-  weaknesses      String
-  recommendations String
-
-  cachedUntil     DateTime  // When to refresh analysis
-  createdAt       DateTime  @default(now())
-
-  @@unique([player1Id, player2Id])
-}
-```
-
-### MVP Database Approach
-
-- **No User table**: MVP has no login, just hardcoded preset summoners
-- **Player table**: Stores summoner info fetched from League API
-- **PDLSnapshot**: Daily snapshots of rank/LP (only key metrics, not full history)
-- **Match data**: Fetched on-demand from League API, never stored
-- **Future**: Add User table when adding authentication in Phase 2
+- **Prisma 7 specifics**: the generator is `prisma-client` with output in `src/generated/prisma` (gitignored, created by `postinstall`). Connection URLs are not in the schema: migrations use `DIRECT_URL` via `prisma.config.ts`; runtime uses `DATABASE_URL` (Supabase transaction pooler) via the `@prisma/adapter-pg` driver in `src/lib/db.ts`.
+- **Server only**: `src/lib/db.ts` and `src/services/playerService.ts` import `server-only`; client components receive data as props.
+- **Match data**: fetched on demand from the Riot API, never stored (finished matches are cached in memory).
+- **RLS** is enabled on Supabase tables; Prisma connects as the owner and is not affected.
 
 ---
 
@@ -233,7 +184,10 @@ model DuoAnalysis {
 
 ```bash
 # Required .env.local variables (MVP)
-RIOT_API_KEY=                     # From Riot Developer Portal
+RIOT_API_KEY=                     # From Riot Developer Portal (dev keys expire every 24h)
+
+DATABASE_URL=                     # Supabase pooler (port 6543, ?pgbouncer=true), used by the app
+DIRECT_URL=                       # Supabase session/direct (port 5432), used by migrations
 
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
@@ -249,12 +203,24 @@ INNGEST_SIGNING_KEY=
 OPENAI_API_KEY=                   # For Phase 3 (AI analysis)
 ```
 
-### Key API Endpoints to Build - MVP
+### API Endpoints
 
 ```
-GET    /api/profile/[summonerName]    - Fetch profile from League API + cache
-GET    /api/matches/[summonerName]    - Fetch recent matches from League API
-GET    /api/player/[summonerName]     - Get stored player data + PDL history
+GET    /api/profile/[summonerName]    - Summoner + Solo/Duo and Flex rank (home cards)
+GET    /api/rank/[summonerName]       - Rank only, 5-min server cache, ?refresh=1 bypasses
+GET    /api/matches/[summonerName]    - Paginated match history (?start, ?count)
+```
+
+All Riot calls go through `leagueApiService`, which shares a token bucket limiter (90% of 20/1s and 100/2min), pauses on 429 for `Retry-After`, and caches PUUIDs and finished matches forever.
+
+### Useful Commands
+
+```bash
+npm run test                # unit tests (mocked)
+npm run test:integration    # real Riot API (needs RIOT_API_KEY, ~35 requests)
+npm run prisma:migrate      # create + apply a migration after editing the schema
+npm run prisma:seed         # seed initial players
+npm run prisma:studio       # browse/edit data (e.g. avatarUrl)
 ```
 
 ### Future Endpoints (Phase 2+)
@@ -335,5 +301,5 @@ Tools: Vercel Analytics, Sentry for errors, custom dashboards
 
 ---
 
-_Last Updated: May 22, 2026_
+_Last Updated: October 15, 2026_
 _Maintainer: Your Team_
