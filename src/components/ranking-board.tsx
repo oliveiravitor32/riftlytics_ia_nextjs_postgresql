@@ -18,6 +18,8 @@ import {
 import { Button } from './ui/button';
 import { formatTier } from '@/src/lib/rank-labels';
 import { PlayerAvatar } from './player-avatar';
+import { profileHref } from '@/src/lib/riot-id';
+import Link from 'next/link';
 import type { LeagueEntry } from '@/src/lib/validators';
 
 type QueueTab = {
@@ -73,6 +75,9 @@ type RankingRow = {
   riotId: string;
   name: string;
   avatarUrl?: string | null;
+  gameName: string;
+  tagLine: string;
+  region: string;
   entry: LeagueEntry | null;
   isLoading: boolean;
   isError: boolean;
@@ -141,6 +146,9 @@ export function RankingBoard({
     riotId: `${s.gameName}#${s.tagLine}`,
     name: results[i].data?.name ?? s.gameName,
     avatarUrl: s.avatarUrl,
+    gameName: s.gameName,
+    tagLine: s.tagLine,
+    region: s.region,
     entry: results[i].data?.[tab.field] ?? null,
     isLoading: results[i].isLoading,
     isError: results[i].isError,
@@ -290,7 +298,14 @@ export function RankingBoard({
                 </span>
                 <PlayerAvatar name={row.name} src={row.avatarUrl} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold">{row.name}</p>
+                  <p className="truncate font-semibold">
+                    <Link
+                      href={profileHref(row.region, row.gameName, row.tagLine)}
+                      className="hover:text-primary hover:underline"
+                    >
+                      {row.name}
+                    </Link>
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {wins}V {losses}D · {winRate.toFixed(1)}% de vitórias
                   </p>
