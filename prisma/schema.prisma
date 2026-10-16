@@ -49,10 +49,13 @@ model PDLSnapshot {
   wins         Int
   losses       Int
 
-  capturedAt DateTime @default(now())
+  // Day the snapshot belongs to (UTC): one row per player/queue/day
+  snapshotDate DateTime @db.Date
+  // Exact moment of the last capture that day (date + time)
+  capturedAt   DateTime @default(now())
 
-  @@unique([playerId, queueType, capturedAt])
-  @@index([playerId, queueType, capturedAt])
+  @@unique([playerId, queueType, snapshotDate])
+  @@index([playerId, queueType, snapshotDate])
   @@map("pdl_snapshots")
 }
 

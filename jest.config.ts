@@ -27,6 +27,9 @@ const config: Config = {
     '!src/**/*.d.ts',
     '!src/**/*.stories.{js,jsx,ts,tsx}',
     '!src/app/layout.tsx',
+    // Generated Prisma client and shadcn primitives aren't our code
+    '!src/generated/**',
+    '!src/components/ui/**',
   ],
 
   coverageThreshold: {
