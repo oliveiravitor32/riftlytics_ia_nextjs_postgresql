@@ -166,7 +166,7 @@
 Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
 - **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
-- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and capture time: `tier`, `rank`, `leaguePoints`, `wins`, `losses`.
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Filled daily by `/api/cron/pdl-snapshot` (Vercel Cron, `CRON_SECRET`).
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
 ### Database Approach

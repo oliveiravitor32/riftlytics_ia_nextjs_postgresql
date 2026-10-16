@@ -207,7 +207,10 @@ describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
     expect(body.pdlHistory.length).toBeGreaterThan(0);
     body.pdlHistory.forEach(
       (p: { capturedAt: string; leaguePoints: number }) => {
-        expect(p.capturedAt).toMatch(/T00:00:00\.000Z$/);
+        // Real capture time (not midnight), within the last 30 days
+        expect(Date.now() - Date.parse(p.capturedAt)).toBeLessThan(
+          31 * 86_400_000
+        );
         expect(p.leaguePoints).toEqual(expect.any(Number));
       }
     );

@@ -2,7 +2,8 @@
  * Daily PDL snapshots (server only)
  * captureDailySnapshots() stores today's Solo/Duo and Flex rank for every
  * active player; getPdlHistory() reads them back for the charts.
- * One row per player/queue/day: re-running on the same day updates it.
+ * One row per player/queue/day (snapshotDate); re-running on the same day
+ * updates it and refreshes capturedAt with the exact time.
  */
 
 import 'server-only';
@@ -16,7 +17,7 @@ const QUEUES: string[] = [
   RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR,
 ];
 
-/** Start of the UTC day: snapshots are keyed by day, not by exact time */
+/** Start of the UTC day: the snapshotDate key */
 export function startOfUtcDay(date = new Date()): Date {
   return new Date(
     Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
@@ -31,7 +32,7 @@ export type SnapshotResult = {
 
 export async function captureDailySnapshots(): Promise<SnapshotResult> {
   const players = await prisma.player.findMany({ where: { active: true } });
-  const capturedAt = startOfUtcDay();
+  const snapshotDate = startOfUtcDay();
   const result: SnapshotResult = {
     players: players.length,
     snapshots: 0,
@@ -61,6 +62,7 @@ export async function captureDailySnapshots(): Promise<SnapshotResult> {
           QUEUES.includes(e.queueType)
         )) {
           const data = {
+            capturedAt: new Date(),
             tier: entry.tier,
             rank: entry.rank,
             leaguePoints: entry.leaguePoints,
@@ -69,10 +71,10 @@ export async function captureDailySnapshots(): Promise<SnapshotResult> {
           };
           await prisma.pDLSnapshot.upsert({
             where: {
-              playerId_queueType_capturedAt: {
+              playerId_queueType_snapshotDate: {
                 playerId: player.id,
                 queueType: entry.queueType,
-                capturedAt,
+                snapshotDate,
               },
             },
             update: data,
@@ -80,7 +82,7 @@ export async function captureDailySnapshots(): Promise<SnapshotResult> {
               ...data,
               playerId: player.id,
               queueType: entry.queueType,
-              capturedAt,
+              snapshotDate,
             },
           });
           result.snapshots++;
@@ -110,13 +112,13 @@ export async function getPdlHistory(
   const rows = await prisma.pDLSnapshot.findMany({
     where: {
       queueType,
-      capturedAt: { gte: since },
+      snapshotDate: { gte: since },
       player: {
         gameName: { equals: gameName, mode: 'insensitive' },
         tagLine: { equals: tagLine, mode: 'insensitive' },
       },
     },
-    orderBy: { capturedAt: 'asc' },
+    orderBy: { snapshotDate: 'asc' },
     select: { capturedAt: true, leaguePoints: true },
   });
 
