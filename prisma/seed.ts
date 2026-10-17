@@ -14,20 +14,32 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DIRECT_URL }),
 });
 
-const players = [
-  { gameName: 'FlyerCloud', tagLine: 'br1' },
-  { gameName: 'Neutro7', tagLine: 'BR1' },
-  { gameName: 'SAVYORI', tagLine: 'br1' },
-  { gameName: 'PistolaCanoCurto', tagLine: 'BR2' },
-  { gameName: 'Pistola Torta', tagLine: 'br1' },
+const PHOTOS =
+  'https://iezfoswxrvkmbbbtcnvz.supabase.co/storage/v1/object/public/fotos_de_perfil/';
+
+const players: { gameName: string; tagLine: string; photo?: string }[] = [
+  { gameName: 'FlyerCloud', tagLine: 'br1', photo: 'vitor.jpg' },
+  { gameName: 'Neutro7', tagLine: 'BR1', photo: 'samuel.jpg' },
+  { gameName: 'SAVYORI', tagLine: 'br1', photo: 'guilherme.jpg' },
+  { gameName: 'PistolaCanoCurto', tagLine: 'BR2', photo: 'cleiton.jpg' },
+  { gameName: 'Pistola Torta', tagLine: 'br1', photo: 'alemao.jpg' },
+  { gameName: 'Viniez', tagLine: 'ROCK' },
+  { gameName: 'Phelps', tagLine: '9388', photo: 'phelipe.jpg' },
 ];
 
 async function main() {
-  for (const p of players) {
+  for (const { gameName, tagLine, photo } of players) {
+    const avatarUrl = photo ? `${PHOTOS}${photo}` : null;
     await prisma.player.upsert({
-      where: { gameName_tagLine: p },
-      update: {},
-      create: { ...p, region: 'br1', displayName: p.gameName },
+      where: { gameName_tagLine: { gameName, tagLine } },
+      update: { avatarUrl },
+      create: {
+        gameName,
+        tagLine,
+        region: 'br1',
+        displayName: gameName,
+        avatarUrl,
+      },
     });
   }
   console.log(`Seed: ${players.length} jogadores cadastrados.`);
