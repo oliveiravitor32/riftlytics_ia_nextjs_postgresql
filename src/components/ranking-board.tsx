@@ -17,6 +17,7 @@ import {
 } from '@/src/queries/useRankQuery';
 import { Button } from './ui/button';
 import { formatTier } from '@/src/lib/rank-labels';
+import { compareRank } from '@/src/lib/rank-order';
 import { PlayerAvatar } from './player-avatar';
 import { profileHref } from '@/src/lib/riot-id';
 import Link from 'next/link';
@@ -31,19 +32,6 @@ type QueueTab = {
 const TABS: QueueTab[] = [
   { id: 'solo', label: 'Solo/Duo', field: 'rankInfo' },
   { id: 'flex', label: 'Ranqueada Flex', field: 'flexRankInfo' },
-];
-
-const TIER_ORDER = [
-  'IRON',
-  'BRONZE',
-  'SILVER',
-  'GOLD',
-  'PLATINUM',
-  'EMERALD',
-  'DIAMOND',
-  'MASTER',
-  'GRANDMASTER',
-  'CHALLENGER',
 ];
 
 // Top 3 fade from citrus to peach to mist (palette order), 4th+ are neutral
@@ -61,15 +49,6 @@ const PODIUM_STYLES = [
     badge: 'border-[#cfd4d7] bg-[#cfd4d7] text-[#111214]',
   },
 ];
-
-const DIVISION_ORDER = ['IV', 'III', 'II', 'I'];
-
-// Single comparable number: tier weighs most, then division, then LP
-function rankScore(entry: LeagueEntry): number {
-  const tier = TIER_ORDER.indexOf(entry.tier);
-  const division = DIVISION_ORDER.indexOf(entry.rank);
-  return tier * 10000 + Math.max(division, 0) * 1000 + entry.leaguePoints;
-}
 
 type RankingRow = {
   riotId: string;
@@ -157,7 +136,7 @@ export function RankingBoard({
 
   const ranked = rows
     .filter((r) => r.entry)
-    .sort((a, b) => rankScore(b.entry!) - rankScore(a.entry!));
+    .sort((a, b) => compareRank(a.entry!, b.entry!));
   const unranked = rows.filter((r) => !r.entry);
   const isLoading = results.some((r) => r.isLoading);
 
