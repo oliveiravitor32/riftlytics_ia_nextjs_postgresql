@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 
 // Same real credentials as the integration suite (.env.local, local only)
@@ -14,8 +15,9 @@ if (
 }
 process.env.LOG_LEVEL = 'error';
 
-// Each test file gets its own Redis namespace, deleted in jest/server.setup.ts
-process.env.CACHE_PREFIX = `test:${crypto.randomUUID().slice(0, 8)}:`;
+// Namespace set once per run by jest/redis-global-setup.ts; this fallback
+// only applies if a file is run some other way (never the production prefix)
+process.env.CACHE_PREFIX ??= `test:${randomUUID().slice(0, 8)}:`;
 
 // Browser APIs jsdom lacks (environment gaps, not app behavior):
 // recharts' ResponsiveContainer measures itself with ResizeObserver

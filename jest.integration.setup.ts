@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 
 // Next.js skips .env.local when NODE_ENV=test, so load it explicitly
@@ -12,5 +13,6 @@ if (!process.env.RIOT_API_KEY) {
 // Keep the output readable; only real problems are logged
 process.env.LOG_LEVEL = 'error';
 
-// Each test file gets its own Redis namespace, deleted in jest/server.setup.ts
-process.env.CACHE_PREFIX = `test:${crypto.randomUUID().slice(0, 8)}:`;
+// Namespace set once per run by jest/redis-global-setup.ts; this fallback
+// only applies if a file is run some other way (never the production prefix)
+process.env.CACHE_PREFIX ??= `test:${randomUUID().slice(0, 8)}:`;
