@@ -1,7 +1,7 @@
 /**
  * API Route: GET /api/rank/[summonerName]
- * Rank only, for the ranking page. Shares the 5-minute profile cache with
- * /api/profile and the profile page; `?refresh=1` bypasses it.
+ * Rank only, for the ranking page. Shares the 10-minute profile cache with
+ * /api/profile and the profile page (forced reload: POST /api/refresh).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -23,13 +23,10 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const region =
     searchParams.get('region') || RIOT_API_CONSTANTS.DEFAULT_REGION;
-  const refresh = searchParams.get('refresh') === '1';
   const riotId = decodeURIComponent(summonerName);
 
   try {
-    const { profile, cached } = await getRankedProfile(riotId, region, {
-      refresh,
-    });
+    const { profile, cached } = await getRankedProfile(riotId, region);
     const data: RankResponse = {
       name: profile.name,
       rankInfo: profile.rankInfo,

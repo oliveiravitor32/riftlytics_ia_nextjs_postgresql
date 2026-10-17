@@ -1,7 +1,6 @@
 import Logo from '../../logo';
 import ThemeToggle from '../../theme-toggle';
 import NavMenu from './nav-menu';
-import SummonerSearch from './summoner-search';
 
 export default function Header() {
   return (
@@ -13,8 +12,6 @@ export default function Header() {
         <div className="ml-auto md:order-last md:ml-0">
           <ThemeToggle />
         </div>
-
-        <SummonerSearch />
       </div>
     </header>
   );

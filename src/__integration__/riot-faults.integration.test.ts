@@ -5,8 +5,34 @@
  * classes and retry logic all run for real.
  */
 
-import { leagueApiService, riotLimiter } from '@/src/services/leagueApiService';
-import { NotFoundError, RateLimitError, RiotApiError } from '@/src/lib/errors';
+import type * as ServiceModule from '@/src/services/leagueApiService';
+import type * as LimiterModule from '@/src/lib/riot-limiter';
+import type * as ErrorsModule from '@/src/lib/errors';
+
+// Faked Riot answers must not spend the real Riot quota that the rest of the
+// suite shares: this file loads its own copy with its own limiter namespace
+let leagueApiService: typeof ServiceModule.leagueApiService;
+let riotLimiter: typeof LimiterModule.riotLimiter;
+let NotFoundError: typeof ErrorsModule.NotFoundError;
+let RateLimitError: typeof ErrorsModule.RateLimitError;
+let RiotApiError: typeof ErrorsModule.RiotApiError;
+{
+  const shared = process.env.CACHE_PREFIX;
+  process.env.CACHE_PREFIX = `${shared}faults:`;
+  jest.isolateModules(() => {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    leagueApiService =
+      require('@/src/services/leagueApiService').leagueApiService;
+    riotLimiter = require('@/src/lib/riot-limiter').riotLimiter;
+    ({
+      NotFoundError,
+      RateLimitError,
+      RiotApiError,
+    } = require('@/src/lib/errors'));
+    /* eslint-enable @typescript-eslint/no-require-imports */
+  });
+  process.env.CACHE_PREFIX = shared;
+}
 
 const realFetch = global.fetch;
 let riotCalls = 0;

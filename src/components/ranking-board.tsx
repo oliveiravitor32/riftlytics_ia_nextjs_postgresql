@@ -10,7 +10,7 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TrackedPlayer } from '@/src/services/playerService';
-import { fetchRank, rankQueryOptions } from '@/src/queries/useRankQuery';
+import { rankQueryOptions, refreshRank } from '@/src/queries/useRankQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { Button } from './ui/button';
 import { formatTier } from '@/src/lib/rank-labels';
@@ -99,7 +99,7 @@ export function RankingBoard({
 
   const lastUpdated = Math.max(0, ...results.map((r) => r.dataUpdatedAt));
 
-  // Forces a fresh fetch on the server too (bypasses its 5-minute cache)
+  // Forced reload on the server (drops its 10-minute cache)
   async function handleRefresh() {
     setIsRefreshing(true);
     await Promise.allSettled(
@@ -107,7 +107,7 @@ export function RankingBoard({
         const riotId = `${s.gameName}#${s.tagLine}`;
         return queryClient.fetchQuery({
           ...rankQueryOptions(riotId, s.region),
-          queryFn: () => fetchRank(riotId, s.region, true),
+          queryFn: () => refreshRank(riotId),
           staleTime: 0,
         });
       })
@@ -163,8 +163,7 @@ export function RankingBoard({
               Calma aí, muitas consultas seguidas!
             </p>
             <p>
-              A Riot limitou temporariamente nossas requisições. Mostramos o que
-              já estava salvo; tente atualizar de novo em{' '}
+              Mostramos o que já estava salvo; tente atualizar de novo em{' '}
               <span aria-live="polite">{secondsLeft}s</span>.
             </p>
           </div>

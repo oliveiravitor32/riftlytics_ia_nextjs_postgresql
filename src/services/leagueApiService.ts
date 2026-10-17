@@ -24,7 +24,8 @@ import {
 } from '@/src/lib/validators';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { buildGameResumeMatch } from '@/src/lib/match-transformers';
-import { TokenBucketLimiter } from '@/src/lib/rate-limiter';
+import { riotLimiter } from '@/src/lib/riot-limiter';
+import { cached } from '@/src/lib/cache';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 
 interface RetryConfig {
@@ -38,25 +39,7 @@ const RANKED_QUEUES: string[] = [
   RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR,
 ];
 
-// Shared by every request in this server process. 10% below Riot's dev-key
-// limits so clock drift between us and Riot doesn't cause 429s.
-export const riotLimiter = new TokenBucketLimiter([
-  {
-    capacity: Math.floor(
-      RIOT_API_CONSTANTS.RATE_LIMIT_REQUESTS_PER_SECOND * 0.9
-    ),
-    intervalMs: 1000,
-  },
-  {
-    capacity: Math.floor(
-      RIOT_API_CONSTANTS.RATE_LIMIT_REQUESTS_PER_2_MINUTES * 0.9
-    ),
-    intervalMs: 120_000,
-  },
-]);
-
-// PUUIDs never change, and finished matches never change: cache forever
-const puuidCache = new Map<string, string>();
+// Finished matches never change: cached forever in memory (DB in the next step)
 const matchCache = new Map<string, Match>();
 
 /**
@@ -87,17 +70,16 @@ class LeagueApiService {
    * Resolve a Riot ID (gameName#tagLine) to its PUUID, cached forever
    */
   async getPuuidByRiotId(riotId: string): Promise<string> {
-    const key = riotId.toLowerCase();
-    const cached = puuidCache.get(key);
-    if (cached) return cached;
-
     const [gameName, tagLine = ''] = riotId.split('#');
     const url = `${this.regionalBaseUrl}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
 
     try {
-      const account = await this.makeRequest<{ puuid: string }>(url);
-      puuidCache.set(key, account.puuid);
-      return account.puuid;
+      const { value } = await cached(
+        `puuid:${riotId.toLowerCase()}`,
+        RIOT_API_CONSTANTS.CACHE_SECONDS.PUUID,
+        async () => (await this.makeRequest<{ puuid: string }>(url)).puuid
+      );
+      return value;
     } catch (error) {
       this.handleApiError(error, { riotId });
     }
@@ -173,11 +155,13 @@ class LeagueApiService {
     logger.debug('Fetching match list', { puuid, start, count });
 
     try {
-      const response = await this.makeRequest<unknown>(url);
-      const validated = MatchIdListSchema.parse(response);
-
-      logger.info('Match list fetched', { puuid, count: validated.length });
-      return validated;
+      const { value } = await cached(
+        `partidas:${puuid}:${start}:${count}`,
+        RIOT_API_CONSTANTS.CACHE_SECONDS.MATCH_IDS,
+        async () =>
+          MatchIdListSchema.parse(await this.makeRequest<unknown>(url))
+      );
+      return value;
     } catch (error) {
       this.handleApiError(error, { puuid, start, count });
     }
@@ -260,7 +244,7 @@ class LeagueApiService {
         });
 
         if (!response.ok) {
-          return this.handleResponseError(response, url);
+          return await this.handleResponseError(response, url);
         }
 
         return (await response.json()) as T;
@@ -303,7 +287,10 @@ class LeagueApiService {
   /**
    * Handle error responses from API
    */
-  private handleResponseError<T>(response: Response, url: string): T {
+  private async handleResponseError(
+    response: Response,
+    url: string
+  ): Promise<never> {
     const statusCode = response.status;
     const context = { statusCode, url, requestCount: this.requestCount };
 
@@ -319,7 +306,7 @@ class LeagueApiService {
         10
       );
       // Our buckets were out of sync with Riot's: stop everyone, not just this call
-      riotLimiter.pause(retryAfter * 1000);
+      await riotLimiter.pause(retryAfter * 1000);
       throw new RateLimitError(retryAfter);
     }
 

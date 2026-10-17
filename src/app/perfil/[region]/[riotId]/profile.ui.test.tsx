@@ -15,6 +15,8 @@ import { toRiotSlug } from '@/src/lib/riot-id';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import { renderApp } from '@/jest/render-app';
+import { RIOT_WAIT_MS } from '@/jest/timeouts';
+import { invalidateProfile } from '@/src/services/profileService';
 
 const PLAYER = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
@@ -33,7 +35,7 @@ async function renderProfile() {
       expect(
         screen.queryByText('Carregando partidas...')
       ).not.toBeInTheDocument(),
-    { timeout: 30_000 }
+    { timeout: RIOT_WAIT_MS }
   );
   return result;
 }
@@ -143,7 +145,7 @@ it('"Carregar mais partidas" appends the next page', async () => {
   );
 
   await waitFor(() => expect(matchItems().length).toBeGreaterThan(before), {
-    timeout: 30_000,
+    timeout: RIOT_WAIT_MS,
   });
 });
 
@@ -156,6 +158,19 @@ describe('not found', () => {
     );
     await expect(
       ProfilePage(params('xx9', toRiotSlug('FlyerCloud', 'br1')))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('rejects a real Riot ID that is not in the group', async () => {
+    // Played with FlyerCloud; exists on Riot but isn't a tracked player
+    await expect(
+      ProfilePage(params('br1', toRiotSlug('Arthurmtd', 'br1')))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('rejects a group player under the wrong region', async () => {
+    await expect(
+      ProfilePage(params('na1', toRiotSlug(PLAYER.gameName, PLAYER.tagLine)))
     ).rejects.toMatchObject(NOT_FOUND);
   });
 
@@ -193,7 +208,7 @@ it('match list explains when the matches cannot be loaded', async () => {
       /Não foi possível carregar as partidas/,
       undefined,
       {
-        timeout: 15_000,
+        timeout: RIOT_WAIT_MS,
       }
     )
   ).toBeInTheDocument();
@@ -201,21 +216,19 @@ it('match list explains when the matches cannot be loaded', async () => {
 
 // Riot's 429 can't be triggered safely: only Riot's HTTP answer is faked
 it('rate limit shows the friendly alert instead of the profile', async () => {
-  const realFetch = global.fetch;
-  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
+  const realNodeFetch = globalThis.__nodeFetch;
+  globalThis.__nodeFetch = async (input, init) =>
     String(input).includes('riotgames.com')
       ? new Response('{}', { status: 429, headers: { 'Retry-After': '1' } })
-      : realFetch(input, init)) as typeof fetch;
-  const realNodeFetch = globalThis.__nodeFetch;
-  globalThis.__nodeFetch = global.fetch;
+      : realNodeFetch(input, init);
 
   try {
-    renderApp(await ProfilePage(params('br1', toRiotSlug('Sem Cache', '429'))));
+    await invalidateProfile(RIOT_ID, PLAYER.region);
+    renderApp(await ProfilePage(playerParams));
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Tente recarregar a página em 1s'
     );
   } finally {
-    global.fetch = realFetch;
     globalThis.__nodeFetch = realNodeFetch;
   }
 });

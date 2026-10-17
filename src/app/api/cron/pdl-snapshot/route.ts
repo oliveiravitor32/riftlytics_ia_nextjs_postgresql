@@ -1,11 +1,12 @@
 /**
  * API Route: GET /api/cron/pdl-snapshot
- * Called once a day by Vercel Cron (see vercel.json) to store PDL snapshots.
+ * Called by Vercel Cron at 23:55 in Brasília (vercel.json) to store the day's
+ * final PDL snapshot of every group player.
  * Protected by CRON_SECRET: Vercel sends it as "Authorization: Bearer <secret>".
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { captureDailySnapshots } from '@/src/services/snapshotService';
+import { captureDailySnapshots } from '@/src/services/profileService';
 
 export const dynamic = 'force-dynamic';
 

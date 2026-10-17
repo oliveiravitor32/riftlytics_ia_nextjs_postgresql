@@ -166,14 +166,16 @@
 Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
 - **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
-- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Filled daily by `/api/cron/pdl-snapshot` (Vercel Cron, `CRON_SECRET`).
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, calendar day in **Brasília**); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by `/api/cron/pdl-snapshot` at 23:55 Brasília (Vercel Cron, `CRON_SECRET`).
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
 ### Database Approach
 
 - **Prisma 7 specifics**: the generator is `prisma-client` with output in `src/generated/prisma` (gitignored, created by `postinstall`). Connection URLs are not in the schema: migrations use `DIRECT_URL` via `prisma.config.ts`; runtime uses `DATABASE_URL` (Supabase transaction pooler) via the `@prisma/adapter-pg` driver in `src/lib/db.ts`.
 - **Server only**: `src/lib/db.ts` and `src/services/playerService.ts` import `server-only`; client components receive data as props.
-- **Match data**: fetched on demand from the Riot API, never stored (finished matches are cached in memory).
+- **Cache (Upstash Redis)**: `src/lib/cache.ts` (`cached`, `invalidate`, `acquireLock`), keys prefixed by `CACHE_PREFIX` (`riftlytics:` in prod, `test:<id>:` per test file). TTLs in `RIOT_API_CONSTANTS.CACHE_SECONDS`: profile + rank 10 min, match-id pages 10 min, PUUID 30 days, forced-reload lock 2 min per player.
+- **Match data**: fetched on demand from the Riot API (match details cached in memory for now; moving to the DB next).
+- **Profiles**: only tracked players have a profile page (`/perfil/[region]/[Name-TAG]`); searching other players is out of scope for now.
 - **RLS** is enabled on Supabase tables; Prisma connects as the owner and is not affected.
 
 ---
@@ -194,8 +196,9 @@ SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 
 # Optional for Phase 2+
-UPSTASH_REDIS_REST_URL=          # For caching (Phase 2)
+UPSTASH_REDIS_REST_URL=          # Shared cache + refresh locks (required)
 UPSTASH_REDIS_REST_TOKEN=
+CRON_SECRET=                     # Protects /api/cron/*
 
 INNGEST_EVENT_KEY=               # For background jobs (Phase 2)
 INNGEST_SIGNING_KEY=
@@ -206,12 +209,14 @@ OPENAI_API_KEY=                   # For Phase 3 (AI analysis)
 ### API Endpoints
 
 ```
-GET    /api/profile/[summonerName]    - Summoner + Solo/Duo and Flex rank (home cards)
-GET    /api/rank/[summonerName]       - Rank only, 5-min server cache, ?refresh=1 bypasses
+GET    /api/profile/[summonerName]    - Summoner + Solo/Duo and Flex rank + PDL history (home cards)
+GET    /api/rank/[summonerName]       - Rank only (ranking page); same 10-min cache as profile
 GET    /api/matches/[summonerName]    - Paginated match history (?start, ?count)
+POST   /api/refresh/[summonerName]    - Forced reload of a group player (1 per player / 2 min, 429 + Retry-After)
+GET    /api/cron/pdl-snapshot         - Daily final PDL snapshot (Vercel Cron, Bearer CRON_SECRET)
 ```
 
-All Riot calls go through `leagueApiService`, which shares a token bucket limiter (90% of 20/1s and 100/2min), pauses on 429 for `Retry-After`, and caches PUUIDs and finished matches forever.
+All Riot calls go through `leagueApiService` and the Redis-backed limiter in `src/lib/riot-limiter.ts` (`@upstash/ratelimit`, 90% of 20/1s and 100/2min). Its counters live in Redis, so every server instance shares one Riot quota; a Riot 429 pauses all of them for `Retry-After`. Region defaults to `br1` (`RIOT_API_CONSTANTS.DEFAULT_REGION`).
 
 ### Useful Commands
 
@@ -246,7 +251,7 @@ TDD, with tests that run the **real application**: nothing of ours is mocked, so
 
 - Only what is outside our control and can't be triggered safely is faked: Riot's HTTP answer for 429/5xx/timeouts, and the clock in the token-bucket math.
 - Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
-- Integration and ui tests need `.env.local` (`RIOT_API_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`) and write today's PDL snapshots to the real DB (idempotent).
+- Integration and ui tests need `.env.local` (`RIOT_API_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`), write today's PDL snapshots to the real DB (idempotent) and use their own Redis key prefix, deleted at the end of each file.
 - GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
 
 ---

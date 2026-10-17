@@ -16,6 +16,9 @@ const allConfig = async (): Promise<Config> => ({
     await integrationProject(),
     await uiProject(),
   ],
+  // One Redis namespace per run, deleted at the end
+  globalSetup: '<rootDir>/jest/redis-global-setup.ts',
+  globalTeardown: '<rootDir>/jest/redis-global-teardown.ts',
   coverageProvider: 'v8',
   collectCoverageFrom: coverageFrom,
   coverageThreshold: {

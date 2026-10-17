@@ -3,8 +3,9 @@
  */
 import { prisma } from '@/src/lib/db';
 
-// Real network calls + the token bucket can take a while
-jest.setTimeout(60_000);
+// Real network calls can wait for the shared Riot quota (90 per 2 minutes)
+// to free up when the whole suite runs, so allow a full window plus margin
+jest.setTimeout(180_000);
 
 // Close the Postgres pool so Jest can exit without --forceExit
 afterAll(() => prisma.$disconnect());

@@ -57,7 +57,7 @@ export function ProfileCard({
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {isRateLimitError(error)
-                ? `A Riot limitou nossas requisições por um instante. Recarregue a página em ${error.retryAfter ?? 60}s.`
+                ? `Aguarde um instante e recarregue a página em ${error.retryAfter ?? 60}s.`
                 : error instanceof Error
                   ? error.message
                   : 'Erro desconhecido'}

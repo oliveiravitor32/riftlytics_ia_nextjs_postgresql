@@ -1,14 +1,23 @@
 import '@testing-library/jest-dom';
+import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 
 // Same real credentials as the integration suite (.env.local, local only)
 config({ path: '.env.local', quiet: true });
-if (!process.env.RIOT_API_KEY || !process.env.DATABASE_URL) {
+if (
+  !process.env.RIOT_API_KEY ||
+  !process.env.DATABASE_URL ||
+  !process.env.UPSTASH_REDIS_REST_URL
+) {
   throw new Error(
-    'RIOT_API_KEY e DATABASE_URL são necessários em .env.local para os testes de UI.'
+    'RIOT_API_KEY, DATABASE_URL e UPSTASH_REDIS_REST_URL são necessários em .env.local para os testes de UI.'
   );
 }
 process.env.LOG_LEVEL = 'error';
+
+// Namespace set once per run by jest/redis-global-setup.ts; this fallback
+// only applies if a file is run some other way (never the production prefix)
+process.env.CACHE_PREFIX ??= `test:${randomUUID().slice(0, 8)}:`;
 
 // Browser APIs jsdom lacks (environment gaps, not app behavior):
 // recharts' ResponsiveContainer measures itself with ResizeObserver

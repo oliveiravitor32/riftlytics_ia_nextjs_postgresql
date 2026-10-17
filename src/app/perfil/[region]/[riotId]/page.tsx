@@ -13,7 +13,6 @@ import { getPdlHistory } from '@/src/services/snapshotService';
 import { NotFoundError, RateLimitError } from '@/src/lib/errors';
 import { parseRiotSlug } from '@/src/lib/riot-id';
 import { formatTier } from '@/src/lib/rank-labels';
-import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { LeagueEntry } from '@/src/lib/validators';
 import { PlayerAvatar } from '@/src/components/player-avatar';
 import { StatItem } from '@/src/components/stat-item';
@@ -23,8 +22,6 @@ import { ProfileMatches } from '@/src/components/profile-matches';
 import { Card } from '@/src/components/ui/card';
 
 type Params = { region: string; riotId: string };
-
-const VALID_REGIONS: string[] = Object.values(RIOT_API_CONSTANTS.REGIONS);
 
 export async function generateMetadata({
   params,
@@ -79,18 +76,19 @@ export default async function ProfilePage({
 }) {
   const { region, riotId: slug } = await params;
   const id = parseRiotSlug(slug);
-  if (!id || !VALID_REGIONS.includes(region)) notFound();
+  if (!id) notFound();
+  // Only the group's players have a profile for now (no search of others)
+  const tracked = await findTrackedPlayer(id.gameName, id.tagLine);
+  if (!tracked || tracked.region !== region) notFound();
 
   const riotId = `${id.gameName}#${id.tagLine}`;
 
   let data;
   try {
-    const [{ profile }, pdlHistory, tracked] = await Promise.all([
-      getRankedProfile(riotId, region),
-      getPdlHistory(id.gameName, id.tagLine),
-      findTrackedPlayer(id.gameName, id.tagLine),
-    ]);
-    data = { profile, pdlHistory, tracked };
+    const { profile } = await getRankedProfile(riotId, region);
+    // Read after the profile: a cache miss has just updated today's snapshot
+    const pdlHistory = await getPdlHistory(id.gameName, id.tagLine);
+    data = { profile, pdlHistory };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
     if (error instanceof RateLimitError) {
@@ -110,14 +108,14 @@ export default async function ProfilePage({
     throw error;
   }
 
-  const { profile, pdlHistory, tracked } = data;
+  const { profile, pdlHistory } = data;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <header className="flex items-center gap-4">
         <PlayerAvatar
           name={riotId}
-          src={tracked?.avatarUrl}
+          src={tracked.avatarUrl}
           className="size-16"
         />
         <div>

@@ -10,6 +10,7 @@ import { NextRequest } from 'next/server';
 import { GET as profileRoute } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as rankRoute } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as matchesRoute } from '@/src/app/api/matches/[summonerName]/route';
+import { POST as refreshRoute } from '@/src/app/api/refresh/[summonerName]/route';
 
 type Handler = (
   request: NextRequest,
@@ -20,6 +21,7 @@ const ROUTES: [RegExp, Handler][] = [
   [/^\/api\/profile\/([^/?]+)/, profileRoute],
   [/^\/api\/rank\/([^/?]+)/, rankRoute],
   [/^\/api\/matches\/([^/?]+)/, matchesRoute],
+  [/^\/api\/refresh\/([^/?]+)/, refreshRoute],
 ];
 
 declare global {

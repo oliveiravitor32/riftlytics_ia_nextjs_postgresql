@@ -1,56 +1,18 @@
 /**
- * Header (logo, nav, summoner search, theme selector) rendered for real
+ * Header (logo, nav, theme selector) rendered for real
  * inside the app's providers.
  */
 
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Header from './header';
-import { profileHref } from '@/src/lib/riot-id';
 import { renderApp } from '@/jest/render-app';
 
-describe('summoner search', () => {
-  it('opens the profile of a valid "Name#TAG" in the selected region', async () => {
-    const user = userEvent.setup();
-    const { pushed } = renderApp(<Header />);
-    const input = screen.getByRole('textbox', { name: /buscar invocador/i });
+it('has no summoner search (only the group is tracked for now)', () => {
+  renderApp(<Header />);
 
-    await user.type(input, 'Pistola Torta#br1{Enter}');
-
-    expect(pushed).toEqual([profileHref('br1', 'Pistola Torta', 'br1')]);
-    expect(input).toHaveValue('');
-  });
-
-  it('uses the region picked in the selector', async () => {
-    const user = userEvent.setup();
-    const { pushed } = renderApp(<Header />);
-
-    await user.click(screen.getByRole('combobox', { name: 'Região' }));
-    await user.click(await screen.findByRole('option', { name: 'EUW' }));
-    await user.type(
-      screen.getByRole('textbox', { name: /buscar invocador/i }),
-      'Caps#EUW'
-    );
-    await user.click(screen.getByRole('button', { name: 'Buscar' }));
-
-    expect(pushed).toEqual([profileHref('euw1', 'Caps', 'EUW')]);
-  });
-
-  it('explains the expected format when the tag is missing', async () => {
-    const user = userEvent.setup();
-    const { pushed } = renderApp(<Header />);
-    const input = screen.getByRole('textbox', { name: /buscar invocador/i });
-
-    await user.type(input, 'SemTag{Enter}');
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Nome#TAG');
-    expect(input).toHaveAttribute('aria-invalid', 'true');
-    expect(pushed).toEqual([]);
-
-    // Typing again clears the error
-    await user.type(input, '#br1');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
+  expect(screen.queryByRole('search')).not.toBeInTheDocument();
+  expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 });
 
 describe('navigation', () => {

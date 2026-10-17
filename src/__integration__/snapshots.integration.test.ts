@@ -3,7 +3,7 @@
  */
 
 import { prisma } from '@/src/lib/db';
-import { captureDailySnapshots } from '@/src/services/snapshotService';
+import { captureDailySnapshots } from '@/src/services/profileService';
 import { leagueApiService } from '@/src/services/leagueApiService';
 
 it('looks up and saves a missing PUUID before capturing the player', async () => {

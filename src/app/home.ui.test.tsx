@@ -15,6 +15,7 @@ import { formatTier } from '@/src/lib/rank-labels';
 import { profileHref } from '@/src/lib/riot-id';
 import type { LeagueEntry } from '@/src/lib/validators';
 import { renderApp } from '@/jest/render-app';
+import { RIOT_WAIT_MS } from '@/jest/timeouts';
 import { apiCalls } from '@/jest/api-bridge';
 
 type Profile = {
@@ -43,7 +44,7 @@ async function renderHome() {
   // Every card finished loading
   await waitFor(
     () => expect(screen.queryByText(/^Carregando /)).not.toBeInTheDocument(),
-    { timeout: 30_000 }
+    { timeout: RIOT_WAIT_MS }
   );
   return result;
 }
@@ -142,7 +143,7 @@ it('a card for a Riot ID that does not exist shows the error', async () => {
   expect(screen.getByText('Carregando Fantasma...')).toBeInTheDocument();
   expect(
     await screen.findByText('Falha ao carregar o perfil', undefined, {
-      timeout: 15_000,
+      timeout: RIOT_WAIT_MS,
     })
   ).toBeInTheDocument();
   expect(screen.getByText(/not found/i)).toBeInTheDocument();
@@ -168,7 +169,7 @@ it('a rate-limited card shows the friendly message with the wait time', async ()
     expect(
       await screen.findByText('Muitas consultas seguidas')
     ).toBeInTheDocument();
-    expect(screen.getByText(/Recarregue a página em 1s/)).toBeInTheDocument();
+    expect(screen.getByText(/recarregue a página em 1s/i)).toBeInTheDocument();
     // 429 is never retried by the client (would only burn more quota)
     expect(apiCalls.filter((u) => u.startsWith('/api/profile/'))).toHaveLength(
       1
