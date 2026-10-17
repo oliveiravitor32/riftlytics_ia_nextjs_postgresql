@@ -16,7 +16,8 @@ import {
 } from '@/src/services/playerService';
 import { compareRank } from '@/src/lib/rank-order';
 import { profileHref } from '@/src/lib/riot-id';
-import { clearRankCache, type RankResponse } from '@/src/lib/rank-cache';
+import { clearProfileCache } from '@/src/services/profileService';
+import type { RankResponse } from '@/src/queries/useRankQuery';
 import { apiCalls } from '@/jest/api-bridge';
 
 let players: TrackedPlayer[];
@@ -146,7 +147,7 @@ it('shows the friendly rate-limit alert and disables refresh on 429', async () =
     String(input).includes('riotgames.com')
       ? new Response('{}', { status: 429, headers: { 'Retry-After': '1' } })
       : realFetch(input, init);
-  clearRankCache();
+  clearProfileCache();
 
   try {
     renderBoard();

@@ -14,7 +14,7 @@ import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { GET as runSnapshotCron } from '@/src/app/api/cron/pdl-snapshot/route';
 import { getPdlHistory } from '@/src/services/snapshotService';
 import { leagueApiService } from '@/src/services/leagueApiService';
-import { clearRankCache } from '@/src/lib/rank-cache';
+import { clearProfileCache } from '@/src/services/profileService';
 
 // A real, ranked player from the group
 const player = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
@@ -128,7 +128,7 @@ describe('GET /api/profile/[summonerName]', () => {
 });
 
 describe('GET /api/rank/[summonerName]', () => {
-  beforeAll(() => clearRankCache());
+  beforeAll(() => clearProfileCache());
 
   it('first call goes to Riot (MISS)', async () => {
     const res = await getRank(request('rank'), params());
