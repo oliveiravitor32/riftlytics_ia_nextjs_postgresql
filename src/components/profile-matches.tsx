@@ -64,11 +64,7 @@ export function ProfileMatches({
   riotId: string;
   region: string;
 }): React.ReactElement {
-  const query = useMatchHistoryQuery(riotId, {
-    region,
-    start: 0,
-    pageSize: PAGE_SIZE,
-  });
+  const query = useMatchHistoryQuery(riotId, region, PAGE_SIZE);
   const matches = useMemo(
     () => query.data?.pages.flatMap((p) => p.matches) ?? [],
     [query.data]

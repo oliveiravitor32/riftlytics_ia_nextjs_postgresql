@@ -8,13 +8,13 @@
 import React, { useState } from 'react';
 import { Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
-import { isRateLimitError } from '@/src/queries/useRankQuery';
+import { isRateLimitError } from '@/src/queries/api-client';
 import { RankBadge } from './rank-badge';
 import { PlayerAvatar } from './player-avatar';
 import { StatItem } from './stat-item';
 import { WinRateBar } from './win-rate-bar';
 import { Card } from './ui/card';
-import { PdlChart, type PdlHistoryPoint } from './pdl-chart';
+import { PdlChart } from './pdl-chart';
 import { profileHref } from '@/src/lib/riot-id';
 import Link from 'next/link';
 
@@ -22,7 +22,7 @@ interface ProfileCardProps {
   gameName: string;
   tagLine: string;
   displayName: string;
-  region?: string;
+  region: string;
   avatarUrl?: string | null;
 }
 
@@ -30,7 +30,7 @@ export function ProfileCard({
   gameName,
   tagLine,
   displayName,
-  region = 'na1',
+  region,
   avatarUrl,
 }: ProfileCardProps): React.ReactElement {
   // The chart only mounts once the section is opened (closed by default)
@@ -42,7 +42,7 @@ export function ProfileCard({
     isLoading,
     isError,
     error,
-  } = useProfileQuery(summonerId, { region });
+  } = useProfileQuery(summonerId, region);
 
   if (isError) {
     return (
@@ -82,7 +82,7 @@ export function ProfileCard({
   }
 
   const rankInfo = profile.rankInfo;
-  const pdlHistory: PdlHistoryPoint[] = profile.pdlHistory ?? [];
+  const pdlHistory = profile.pdlHistory;
   return (
     <Card className="gap-0 overflow-hidden border-border bg-card py-0 shadow-sm transition-colors duration-200 hover:border-foreground/20">
       <article className="divide-y divide-border">

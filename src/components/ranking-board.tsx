@@ -10,11 +10,8 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TrackedPlayer } from '@/src/services/playerService';
-import {
-  fetchRank,
-  isRateLimitError,
-  rankQueryOptions,
-} from '@/src/queries/useRankQuery';
+import { fetchRank, rankQueryOptions } from '@/src/queries/useRankQuery';
+import { isRateLimitError } from '@/src/queries/api-client';
 import { Button } from './ui/button';
 import { formatTier } from '@/src/lib/rank-labels';
 import { compareRank } from '@/src/lib/rank-order';
