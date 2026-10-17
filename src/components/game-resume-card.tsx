@@ -13,7 +13,7 @@ export type MatchResult = 'win' | 'loss';
 
 export type GameResumeMatch = {
   matchId?: string;
-  playedAt?: string;
+  playedAt: string;
   result: MatchResult;
   playerSide: 'blue' | 'red';
   playerName: string;
@@ -29,7 +29,6 @@ export type GameResumeMatch = {
   duration: string;
   kda: string;
   cs: number;
-  lp: number;
   damageShare: string;
   spells: { name: string; image: string }[];
   items: { name: string; image: string }[];
@@ -108,14 +107,8 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
           <CardTitle>{match.queue}</CardTitle>
           <CardDescription className="flex items-center gap-1 rounded-md border border-border bg-background/80 px-2 py-0.5">
             <Clock3 className="size-3" />
-            {match.duration} - {match.playedAt ?? '1 hora atrás'}
+            {match.duration} - {match.playedAt}
           </CardDescription>
-          <span
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${meta.tone}`}
-          >
-            {match.lp > 0 ? '+' : ''}
-            {match.lp} PDL
-          </span>
         </div>
       </CardHeader>
       <CardContent className="m-0 p-0">

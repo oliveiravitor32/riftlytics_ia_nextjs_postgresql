@@ -13,31 +13,30 @@ import {
 } from '@/src/lib/errors';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 
+function intParam(value: string | null, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ summonerName: string }> }
 ) {
   const { summonerName } = await params;
   const { searchParams } = new URL(request.url);
-  const region = searchParams.get('region') || 'na1';
-  const start = Math.max(0, parseInt(searchParams.get('start') || '5', 10));
+  const region =
+    searchParams.get('region') || RIOT_API_CONSTANTS.DEFAULT_REGION;
+  // Non-numeric values fall back to the defaults (never NaN to Riot)
+  const start = Math.max(0, intParam(searchParams.get('start'), 0));
   const requestedCount = Math.max(
     1,
     Math.min(
       RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE,
-      parseInt(searchParams.get('count') || '10', 10)
+      intParam(searchParams.get('count'), 10)
     )
   );
 
   try {
-    if (!summonerName || typeof summonerName !== 'string') {
-      logger.warn('Invalid summoner name parameter', { summonerName });
-      return NextResponse.json(
-        { error: 'Invalid summoner name' },
-        { status: 400 }
-      );
-    }
-
     // Only the PUUID is needed (cached forever), not the full summoner
     const riotId = decodeURIComponent(summonerName);
     const puuid = await leagueApiService.getPuuidByRiotId(riotId);

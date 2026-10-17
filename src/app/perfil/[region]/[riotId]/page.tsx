@@ -7,7 +7,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
-import { leagueApiService } from '@/src/services/leagueApiService';
+import { getRankedProfile } from '@/src/services/profileService';
 import { findTrackedPlayer } from '@/src/services/playerService';
 import { getPdlHistory } from '@/src/services/snapshotService';
 import { NotFoundError, RateLimitError } from '@/src/lib/errors';
@@ -85,14 +85,12 @@ export default async function ProfilePage({
 
   let data;
   try {
-    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
-    const [summoner, entries, pdlHistory, tracked] = await Promise.all([
-      leagueApiService.getSummonerByPuuid(puuid, region, riotId),
-      leagueApiService.getLeagueEntries(puuid, region),
+    const [{ profile }, pdlHistory, tracked] = await Promise.all([
+      getRankedProfile(riotId, region),
       getPdlHistory(id.gameName, id.tagLine),
       findTrackedPlayer(id.gameName, id.tagLine),
     ]);
-    data = { summoner, entries, pdlHistory, tracked };
+    data = { profile, pdlHistory, tracked };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
     if (error instanceof RateLimitError) {
@@ -112,15 +110,7 @@ export default async function ProfilePage({
     throw error;
   }
 
-  const { summoner, entries, pdlHistory, tracked } = data;
-  const solo =
-    entries.find(
-      (e) => e.queueType === RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO
-    ) ?? null;
-  const flex =
-    entries.find(
-      (e) => e.queueType === RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR
-    ) ?? null;
+  const { profile, pdlHistory, tracked } = data;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
@@ -136,14 +126,14 @@ export default async function ProfilePage({
             <span className="text-muted-foreground">#{id.tagLine}</span>
           </h1>
           <p className="text-sm text-muted-foreground">
-            Nível {summoner.summonerLevel} · {region.toUpperCase()}
+            Nível {profile.summonerLevel} · {region.toUpperCase()}
           </p>
         </div>
       </header>
 
       <section aria-label="Elo por fila" className="grid gap-4 sm:grid-cols-2">
-        <QueueCard title="Solo/Duo" entry={solo} />
-        <QueueCard title="Ranqueada Flex" entry={flex} />
+        <QueueCard title="Solo/Duo" entry={profile.rankInfo} />
+        <QueueCard title="Ranqueada Flex" entry={profile.flexRankInfo} />
       </section>
 
       <section aria-labelledby="titulo-pdl">

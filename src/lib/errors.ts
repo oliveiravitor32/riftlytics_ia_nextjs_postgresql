@@ -71,32 +71,6 @@ export class NotFoundError extends AppError {
 }
 
 /**
- * Validation error
- */
-export class ValidationError extends AppError {
-  public readonly errors: Array<{ field: string; message: string }>;
-
-  constructor(
-    message: string,
-    errors: Array<{ field: string; message: string }> = []
-  ) {
-    super(message, 400, { errors });
-    this.errors = errors;
-    Object.setPrototypeOf(this, ValidationError.prototype);
-  }
-}
-
-/**
- * Database error
- */
-export class DatabaseError extends AppError {
-  constructor(message: string, context: Record<string, unknown> = {}) {
-    super(`Database error: ${message}`, 500, context);
-    Object.setPrototypeOf(this, DatabaseError.prototype);
-  }
-}
-
-/**
  * External service error
  */
 export class ExternalServiceError extends AppError {
@@ -140,11 +114,5 @@ export function getErrorMessage(error: unknown): string {
  * Extract status code from any error type
  */
 export function getErrorStatusCode(error: unknown): number {
-  if (isAppError(error)) {
-    return error.statusCode;
-  }
-  if (error instanceof Error) {
-    return 500;
-  }
-  return 500;
+  return isAppError(error) ? error.statusCode : 500;
 }

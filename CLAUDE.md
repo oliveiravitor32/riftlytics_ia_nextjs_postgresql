@@ -216,8 +216,10 @@ All Riot calls go through `leagueApiService`, which shares a token bucket limite
 ### Useful Commands
 
 ```bash
-npm run test                # unit tests (mocked)
-npm run test:integration    # real Riot API (needs RIOT_API_KEY, ~35 requests)
+npm run test                # unit tests (offline; what CI runs)
+npm run test:integration    # real Riot API + Supabase (local, needs .env.local)
+npm run test:ui             # real components/pages through the real routes (local)
+npm run test:all            # every suite + the 90% coverage gate (local)
 npm run prisma:migrate      # create + apply a migration after editing the schema
 npm run prisma:seed         # seed initial players
 npm run prisma:studio       # browse/edit data (e.g. avatarUrl)
@@ -232,12 +234,20 @@ POST   /api/analysis/duo              - Trigger duo compatibility analysis
 GET    /api/cache/invalidate          - Admin endpoint
 ```
 
-### Testing Strategy - MVP
+### Testing Strategy
 
-- **Unit**: TanStack Query hooks with Mock Service Worker (mock League API responses)
-- **Integration**: API routes with test summoner names
-- **E2E**: Playwright tests for profile display + comparison
-- **Manual**: Test with real players to verify data accuracy
+TDD, with tests that run the **real application**: nothing of ours is mocked, so a wrong change in the app makes a test fail. Minimum coverage: **90%** (statements, branches, functions, lines), measured over all suites together.
+
+| Suite       | Files                   | What it runs                                                                                            | Where             |
+| ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
+| unit        | `*.test.ts(x)`          | Pure logic (limiter, rank order, Riot ID, labels, errors, logger)                                       | local + GitHub CI |
+| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase                                      | local only        |
+| ui          | `*.ui.test.tsx`         | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only        |
+
+- Only what is outside our control and can't be triggered safely is faked: Riot's HTTP answer for 429/5xx/timeouts, and the clock in the token-bucket math.
+- Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
+- Integration and ui tests need `.env.local` (`RIOT_API_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`) and write today's PDL snapshots to the real DB (idempotent).
+- GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
 
 ---
 
@@ -301,5 +311,5 @@ Tools: Vercel Analytics, Sentry for errors, custom dashboards
 
 ---
 
-_Last Updated: October 15, 2026_
+_Last Updated: October 17, 2026_
 _Maintainer: Your Team_

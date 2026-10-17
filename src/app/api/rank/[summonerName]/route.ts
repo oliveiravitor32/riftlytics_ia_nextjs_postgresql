@@ -1,24 +1,19 @@
 /**
  * API Route: GET /api/rank/[summonerName]
- * Lightweight rank lookup for the ranking page (no match history),
- * cached in memory so tab switches and reloads don't hit the Riot API.
- * `?refresh=1` bypasses the cache.
+ * Rank only, for the ranking page. Shares the 5-minute profile cache with
+ * /api/profile and the profile page; `?refresh=1` bypasses it.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { leagueApiService } from '@/src/services/leagueApiService';
+import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
+import { getRankedProfile } from '@/src/services/profileService';
 import { logger } from '@/src/lib/logger';
 import {
   RateLimitError,
   getErrorMessage,
   getErrorStatusCode,
 } from '@/src/lib/errors';
-import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
-import {
-  getCachedRank,
-  setCachedRank,
-  type RankResponse,
-} from '@/src/lib/rank-cache';
+import type { RankResponse } from '@/src/queries/useRankQuery';
 
 export async function GET(
   request: NextRequest,
@@ -26,39 +21,24 @@ export async function GET(
 ) {
   const { summonerName } = await params;
   const { searchParams } = new URL(request.url);
-  const region = searchParams.get('region') || 'na1';
+  const region =
+    searchParams.get('region') || RIOT_API_CONSTANTS.DEFAULT_REGION;
   const refresh = searchParams.get('refresh') === '1';
   const riotId = decodeURIComponent(summonerName);
-  const cacheKey = `${region}:${riotId.toLowerCase()}`;
-
-  const cached = refresh ? null : getCachedRank(cacheKey);
-  if (cached) {
-    return NextResponse.json(cached, { headers: { 'X-Cache': 'HIT' } });
-  }
 
   try {
-    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
-    const [summoner, entries] = await Promise.all([
-      leagueApiService.getSummonerByPuuid(puuid, region, riotId),
-      leagueApiService.getLeagueEntries(puuid, region),
-    ]);
-
+    const { profile, cached } = await getRankedProfile(riotId, region, {
+      refresh,
+    });
     const data: RankResponse = {
-      name: summoner.name,
-      rankInfo:
-        entries.find(
-          (e) => e.queueType === RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO
-        ) ?? null,
-      flexRankInfo:
-        entries.find(
-          (e) => e.queueType === RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR
-        ) ?? null,
-      fetchedAt: new Date().toISOString(),
+      name: profile.name,
+      rankInfo: profile.rankInfo,
+      flexRankInfo: profile.flexRankInfo,
+      fetchedAt: profile.fetchedAt,
     };
-
-    setCachedRank(cacheKey, data);
-
-    return NextResponse.json(data, { headers: { 'X-Cache': 'MISS' } });
+    return NextResponse.json(data, {
+      headers: { 'X-Cache': cached ? 'HIT' : 'MISS' },
+    });
   } catch (error) {
     if (error instanceof RateLimitError) {
       logger.warn('Rank API: rate limited', { riotId, region });

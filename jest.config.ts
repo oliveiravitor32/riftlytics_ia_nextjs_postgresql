@@ -1,46 +1,15 @@
 import type { Config } from 'jest';
-import nextJest from 'next/jest';
+import { coverageFrom, unitProject } from './jest/projects';
 
-const createJestConfig = nextJest({
-  // Provide the path to your Next.js app to load next.config.js and .env files in your test environment
-  dir: './',
+/**
+ * `npm test`: offline unit tests only (this is what GitHub CI runs).
+ * Real Riot/Supabase suites run locally: npm run test:integration / test:ui,
+ * and the 90% coverage gate lives in `npm run test:all` (jest.all.config.ts).
+ */
+const unitConfig = async (): Promise<Config> => ({
+  ...(await unitProject()),
+  coverageProvider: 'v8',
+  collectCoverageFrom: coverageFrom,
 });
 
-// Add any custom config to be passed to Jest
-const config: Config = {
-  coverageProvider: 'v8',
-  testEnvironment: 'jsdom',
-
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
-  },
-
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-
-  testMatch: ['**/__tests__/**/*.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
-
-  // Real Riot API tests run separately: npm run test:integration
-  testPathIgnorePatterns: ['/node_modules/', '\\.integration\\.test\\.'],
-
-  collectCoverageFrom: [
-    'src/**/*.{js,jsx,ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/*.stories.{js,jsx,ts,tsx}',
-    '!src/app/layout.tsx',
-    // Generated Prisma client and shadcn primitives aren't our code
-    '!src/generated/**',
-    '!src/components/ui/**',
-  ],
-
-  coverageThreshold: {
-    global: {
-      branches: 50,
-      functions: 50,
-      lines: 50,
-      statements: 50,
-    },
-  },
-};
-
-// createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
-export default createJestConfig(config);
+export default unitConfig;

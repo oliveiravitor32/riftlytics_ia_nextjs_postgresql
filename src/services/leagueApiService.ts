@@ -64,7 +64,6 @@ const matchCache = new Map<string, Match>();
  */
 class LeagueApiService {
   private readonly apiKey: string;
-  private readonly platformBaseUrl: string;
   private readonly regionalBaseUrl: string;
   private readonly requestTimeout: number;
   private readonly retryConfig: RetryConfig;
@@ -72,7 +71,6 @@ class LeagueApiService {
 
   constructor() {
     this.apiKey = config.riotApi.apiKey;
-    this.platformBaseUrl = config.riotApi.platformBaseUrl;
     this.regionalBaseUrl = config.riotApi.baseUrl;
     this.requestTimeout = RIOT_API_CONSTANTS.REQUEST_TIMEOUT_MS;
     this.retryConfig = {
@@ -106,167 +104,18 @@ class LeagueApiService {
   }
 
   /**
-   * Get summoner by name
-   * Uses the Riot ID endpoint to fetch puuid first, then gets full summoner data
-   */
-  async getSummonerByName(
-    summonerName: string,
-    region = 'na1'
-  ): Promise<Summoner> {
-    const gameName = summonerName.split('#')[0];
-    const tagLine = summonerName.split('#')[1] || '';
-
-    const url = `${this.regionalBaseUrl}/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`;
-
-    logger.debug('Fetching summoner by Riot ID', { summonerName, region, url });
-
-    try {
-      // First, get the PUUID using the Riot ID endpoint
-      const riotIdResponse = await this.makeRequest<{
-        puuid: string;
-        gameName: string;
-        tagLine: string;
-      }>(url);
-
-      logger.debug('Riot ID response', {
-        gameName: riotIdResponse.gameName,
-        tagLine: riotIdResponse.tagLine,
-        puuid: riotIdResponse.puuid,
-      });
-
-      // Then, get the full summoner data using the PUUID
-      let summoner;
-      try {
-        summoner = await this.getSummonerByPuuid(
-          riotIdResponse.puuid,
-          region,
-          `${riotIdResponse.gameName}#${riotIdResponse.tagLine}`
-        );
-        // If the platform response lacks id or name, fall back to by-name lookup
-        if (!summoner?.id || !summoner?.name) {
-          logger.warn(
-            'Summoner by-puuid missing fields, falling back to by-name',
-            {
-              puuid: riotIdResponse.puuid,
-              gameName: riotIdResponse.gameName,
-            }
-          );
-          throw new Error('IncompleteSummoner');
-        }
-      } catch {
-        // Fallback: request by-name on the platform host using gameName
-        const platformUrl = `https://${region}.api.riotgames.com`;
-        const byNameUrl = `${platformUrl}/lol/summoner/v4/summoners/by-name/${encodeURIComponent(
-          riotIdResponse.gameName
-        )}`;
-
-        logger.debug('Falling back to summoner by-name', {
-          byNameUrl,
-          region,
-        });
-
-        const byNameResponse =
-          await this.makeRequest<Record<string, unknown>>(byNameUrl);
-        try {
-          summoner = SummonerSchema.parse(byNameResponse);
-        } catch (zErr) {
-          logger.error('Failed to validate summoner from by-name fallback', {
-            byNameResponse,
-            error: zErr,
-          });
-          throw zErr;
-        }
-      }
-
-      logger.info('Summoner fetched successfully', {
-        summonerName,
-        puuid: summoner.puuid,
-      });
-      return summoner;
-    } catch (error) {
-      this.handleApiError(error, { summonerName, region });
-    }
-  }
-
-  /**
-   * Get summoner by PUUID
+   * Summoner (level, icon) by PUUID; `riotId` becomes its display name
    */
   async getSummonerByPuuid(
     puuid: string,
-    region = 'na1',
-    fallbackName?: string
+    region: string,
+    riotId: string
   ): Promise<Summoner> {
-    // Map region code to platform URL
-    const platformUrl = `https://${region}.api.riotgames.com`;
-    const url = `${platformUrl}/lol/summoner/v4/summoners/by-puuid/${puuid}`;
-
-    logger.debug('Fetching summoner by PUUID', { puuid, region, url });
+    const url = `https://${region}.api.riotgames.com${RIOT_API_CONSTANTS.ENDPOINTS.SUMMONER_BY_PUUID}/${puuid}`;
 
     try {
-      const response = await this.makeRequest<Record<string, unknown>>(url);
-      // Log raw response body for debugging when schema validation fails
-      try {
-        logger.debug('Raw summoner-by-puuid response body', {
-          puuid,
-          body: JSON.stringify(response),
-        });
-      } catch {
-        logger.debug('Raw summoner-by-puuid response (non-serializable)', {
-          puuid,
-        });
-      }
-      try {
-        const validated = SummonerSchema.parse(response);
-        logger.info('Summoner fetched successfully', { puuid });
-        return validated;
-      } catch (zErr) {
-        // If the platform returns a reduced object (missing id/accountId/name),
-        // construct a best-effort Summoner object using available fields and fallbacks.
-        logger.warn(
-          'Summoner by-puuid missing fields; constructing fallback object',
-          {
-            puuid,
-            error: zErr,
-          }
-        );
-
-        const fallback: Summoner = {
-          id:
-            typeof response.id === 'string'
-              ? response.id
-              : typeof response.puuid === 'string'
-                ? response.puuid
-                : puuid,
-          accountId:
-            typeof response.accountId === 'string'
-              ? response.accountId
-              : typeof response.puuid === 'string'
-                ? response.puuid
-                : puuid,
-          puuid: typeof response.puuid === 'string' ? response.puuid : puuid,
-          name:
-            typeof response.name === 'string'
-              ? response.name
-              : (fallbackName ?? `${puuid.substring(0, 8)}`),
-          profileIconId:
-            typeof response.profileIconId === 'number'
-              ? response.profileIconId
-              : 0,
-          summonerLevel:
-            typeof response.summonerLevel === 'number'
-              ? response.summonerLevel
-              : 0,
-          revisionDate:
-            typeof response.revisionDate === 'number'
-              ? response.revisionDate
-              : Date.now(),
-        };
-
-        // Validate the constructed object against the schema to ensure types
-        const validatedFallback = SummonerSchema.parse(fallback);
-        logger.info('Returning fallback summoner object', { puuid });
-        return validatedFallback;
-      }
+      const response = await this.makeRequest<unknown>(url);
+      return { ...SummonerSchema.parse(response), name: riotId };
     } catch (error) {
       this.handleApiError(error, { puuid, region });
     }
@@ -277,7 +126,7 @@ class LeagueApiService {
    */
   async getLeagueEntries(
     puuid: string,
-    region = 'na1'
+    region: string
   ): Promise<LeagueEntry[]> {
     // by-summoner was removed by Riot; by-puuid is the current endpoint
     // https://developer.riotgames.com/apis#league-v4
@@ -493,7 +342,10 @@ class LeagueApiService {
     // so retrying would only burn more of the quota
     if (error instanceof RateLimitError) return false;
     if (error instanceof ExternalServiceError) return true;
-    if (error instanceof Error && error.name === 'AbortError') return true;
+    // AbortSignal.timeout() rejects with a TimeoutError DOMException, which
+    // fetch creates in another realm (instanceof Error fails): check the name
+    const name = (error as { name?: unknown } | null)?.name;
+    if (name === 'TimeoutError' || name === 'AbortError') return true;
 
     return false;
   }

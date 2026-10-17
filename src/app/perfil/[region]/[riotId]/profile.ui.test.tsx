@@ -1,0 +1,221 @@
+/**
+ * Profile page against the real app: server component (Riot + Supabase via
+ * our services) plus the client match list hitting the real /api/matches.
+ */
+
+import { screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import ProfilePage, { generateMetadata } from './page';
+import ProfileNotFound from './not-found';
+import { ProfileMatches } from '@/src/components/profile-matches';
+import { leagueApiService } from '@/src/services/leagueApiService';
+import { getPdlHistory } from '@/src/services/snapshotService';
+import { formatTier } from '@/src/lib/rank-labels';
+import { toRiotSlug } from '@/src/lib/riot-id';
+import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
+import type { GameResumeMatch } from '@/src/components/game-resume-card';
+import { renderApp } from '@/jest/render-app';
+
+const PLAYER = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
+const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
+const params = (region: string, slug: string) => ({
+  params: Promise.resolve({ region, riotId: slug }),
+});
+const playerParams = params(
+  PLAYER.region,
+  toRiotSlug(PLAYER.gameName, PLAYER.tagLine)
+);
+
+async function renderProfile() {
+  const result = renderApp(await ProfilePage(playerParams));
+  await waitFor(
+    () =>
+      expect(
+        screen.queryByText('Carregando partidas...')
+      ).not.toBeInTheDocument(),
+    { timeout: 30_000 }
+  );
+  return result;
+}
+
+const matchItems = () =>
+  within(
+    screen.getByRole('heading', { name: 'Partidas recentes' })
+      .parentElement as HTMLElement
+  ).getAllByRole('listitem');
+
+it('header shows the Riot ID, level and region', async () => {
+  const puuid = await leagueApiService.getPuuidByRiotId(RIOT_ID);
+  const summoner = await leagueApiService.getSummonerByPuuid(
+    puuid,
+    PLAYER.region,
+    RIOT_ID
+  );
+  await renderProfile();
+
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(RIOT_ID);
+  expect(
+    screen.getByText(`Nível ${summoner.summonerLevel} · BR1`)
+  ).toBeInTheDocument();
+});
+
+it('shows Solo/Duo and Flex ranks from the Riot API', async () => {
+  const puuid = await leagueApiService.getPuuidByRiotId(RIOT_ID);
+  const entries = await leagueApiService.getLeagueEntries(puuid, PLAYER.region);
+  await renderProfile();
+  const queues = screen.getByRole('region', { name: 'Elo por fila' });
+
+  for (const [title, queue] of [
+    ['Solo/Duo', RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO],
+    ['Ranqueada Flex', RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR],
+  ]) {
+    const card = within(queues)
+      .getByRole('heading', { name: title })
+      .closest('[data-slot="card"]') as HTMLElement;
+    const entry = entries.find((e) => e.queueType === queue);
+    if (entry) {
+      expect(card).toHaveTextContent(formatTier(entry.tier, entry.rank));
+      expect(card).toHaveTextContent(`${entry.leaguePoints} PDL`);
+    } else {
+      expect(card).toHaveTextContent('Sem ranque nesta fila');
+    }
+  }
+});
+
+it('plots the stored PDL history (or explains it needs more days)', async () => {
+  const history = await getPdlHistory(PLAYER.gameName, PLAYER.tagLine);
+  const { container } = await renderProfile();
+
+  if (history.length >= 2) {
+    expect(container.querySelector('.recharts-line')).toBeInTheDocument();
+  } else {
+    expect(
+      screen.getByText(/Ainda não há registros de PDL suficientes/)
+    ).toBeInTheDocument();
+  }
+});
+
+it('lists the 10 most recent matches with champion and role stats', async () => {
+  const { matches } = (await (
+    await fetch(
+      `/api/matches/${encodeURIComponent(RIOT_ID)}?region=br1&start=0&count=10`
+    )
+  ).json()) as { matches: GameResumeMatch[] };
+  await renderProfile();
+
+  expect(matchItems()).toHaveLength(matches.length);
+  expect(
+    screen.getByText(`Com base nas ${matches.length} partidas carregadas`)
+  ).toBeInTheDocument();
+
+  // The most played champion is listed first, with its real game count
+  const counts = new Map<string, number>();
+  for (const m of matches)
+    counts.set(m.champion, (counts.get(m.champion) ?? 0) + 1);
+  const top = Math.max(...counts.values());
+  const champions = within(
+    screen.getByRole('heading', { name: 'Campeões mais jogados' })
+      .parentElement as HTMLElement
+  ).getAllByRole('listitem');
+  expect(champions[0]).toHaveTextContent(
+    `${top} ${top === 1 ? 'partida' : 'partidas'}`
+  );
+
+  // Role shares add up to ~100%
+  const roles = within(
+    screen.getByRole('heading', { name: 'Distribuição de rotas' })
+      .parentElement as HTMLElement
+  ).getAllByRole('listitem');
+  const total = roles
+    .map((li) => Number(li.textContent!.match(/(\d+)%/)![1]))
+    .reduce((a, b) => a + b, 0);
+  expect(total).toBeGreaterThanOrEqual(98);
+  expect(total).toBeLessThanOrEqual(102);
+});
+
+it('"Carregar mais partidas" appends the next page', async () => {
+  const user = userEvent.setup();
+  await renderProfile();
+  const before = matchItems().length;
+
+  await user.click(
+    screen.getByRole('button', { name: 'Carregar mais partidas' })
+  );
+
+  await waitFor(() => expect(matchItems().length).toBeGreaterThan(before), {
+    timeout: 30_000,
+  });
+});
+
+describe('not found', () => {
+  const NOT_FOUND = { digest: expect.stringContaining('404') };
+
+  it('rejects an invalid slug or region', async () => {
+    await expect(ProfilePage(params('br1', 'SemTag'))).rejects.toMatchObject(
+      NOT_FOUND
+    );
+    await expect(
+      ProfilePage(params('xx9', toRiotSlug('FlyerCloud', 'br1')))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('rejects a Riot ID that does not exist', async () => {
+    await expect(
+      ProfilePage(params('br1', toRiotSlug('zz-nao-existe-321', '0000')))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('the not-found page guides the user back home', () => {
+    renderApp(<ProfileNotFound />);
+
+    expect(
+      screen.getByRole('heading', { name: 'Invocador não encontrado' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /voltar/i })).toHaveAttribute(
+      'href',
+      '/'
+    );
+  });
+});
+
+it('the page title is the Riot ID', async () => {
+  expect((await generateMetadata(playerParams)).title).toBe(RIOT_ID);
+  expect((await generateMetadata(params('br1', 'SemTag'))).title).toBe(
+    'Perfil'
+  );
+});
+
+it('match list explains when the matches cannot be loaded', async () => {
+  renderApp(<ProfileMatches riotId="zz-nao-existe-321#0000" region="br1" />);
+
+  expect(
+    await screen.findByText(
+      /Não foi possível carregar as partidas/,
+      undefined,
+      {
+        timeout: 15_000,
+      }
+    )
+  ).toBeInTheDocument();
+});
+
+// Riot's 429 can't be triggered safely: only Riot's HTTP answer is faked
+it('rate limit shows the friendly alert instead of the profile', async () => {
+  const realFetch = global.fetch;
+  global.fetch = (async (input: RequestInfo | URL, init?: RequestInit) =>
+    String(input).includes('riotgames.com')
+      ? new Response('{}', { status: 429, headers: { 'Retry-After': '1' } })
+      : realFetch(input, init)) as typeof fetch;
+  const realNodeFetch = globalThis.__nodeFetch;
+  globalThis.__nodeFetch = global.fetch;
+
+  try {
+    renderApp(await ProfilePage(params('br1', toRiotSlug('Sem Cache', '429'))));
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Tente recarregar a página em 1s'
+    );
+  } finally {
+    global.fetch = realFetch;
+    globalThis.__nodeFetch = realNodeFetch;
+  }
+});

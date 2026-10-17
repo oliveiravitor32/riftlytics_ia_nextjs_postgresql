@@ -6,19 +6,18 @@
 import { z } from 'zod';
 
 /**
- * Summoner profile data from Riot API
+ * summoner-v4 by-puuid response. Riot no longer sends id/accountId/name;
+ * the display name comes from the Riot ID (account-v1).
+ * https://developer.riotgames.com/apis#summoner-v4
  */
 export const SummonerSchema = z.object({
-  id: z.string().describe('Summoner ID'),
-  accountId: z.string().describe('Account ID'),
-  puuid: z.string().describe('Player Universally Unique Identifier'),
-  name: z.string().describe('Summoner name'),
-  profileIconId: z.number().describe('Profile icon ID'),
-  summonerLevel: z.number().describe('Summoner level'),
-  revisionDate: z.number().describe('Last revision timestamp'),
+  puuid: z.string(),
+  profileIconId: z.number(),
+  summonerLevel: z.number(),
+  revisionDate: z.number(),
 });
 
-export type Summoner = z.infer<typeof SummonerSchema>;
+export type Summoner = z.infer<typeof SummonerSchema> & { name: string };
 
 /**
  * League entry (rank information)
@@ -45,16 +44,6 @@ export const LeagueEntrySchema = z.object({
 export type LeagueEntry = z.infer<typeof LeagueEntrySchema>;
 
 /**
- * Points history point used for profile trend charts
- */
-export const PdlHistoryPointSchema = z.object({
-  capturedAt: z.string(),
-  leaguePoints: z.number(),
-});
-
-export type PdlHistoryPoint = z.infer<typeof PdlHistoryPointSchema>;
-
-/**
  * Participant data in a match
  */
 export const ParticipantSchema = z.object({
@@ -63,6 +52,9 @@ export const ParticipantSchema = z.object({
   championLevel: z.number().optional(),
   champLevel: z.number().optional(),
   summonerName: z.string().optional(),
+  // Riot ID of the player (summonerName is empty for most accounts today)
+  riotIdGameName: z.string().optional(),
+  riotIdTagline: z.string().optional(),
   kills: z.number(),
   deaths: z.number(),
   assists: z.number(),
@@ -196,50 +188,3 @@ export type Match = z.infer<typeof MatchSchema>;
 export const MatchIdListSchema = z.array(z.string()).min(0).max(100);
 
 export type MatchIdList = z.infer<typeof MatchIdListSchema>;
-
-/**
- * Summoner profile data for display (combination of summoner + league info)
- */
-export const PlayerProfileSchema = z.object({
-  id: z.string(),
-  summonerName: z.string(),
-  displayName: z.string(),
-  puuid: z.string(),
-  summonerId: z.string(),
-  profileIconId: z.number(),
-  summonerLevel: z.number(),
-  tier: z.string().optional(),
-  rank: z.string().optional(),
-  leaguePoints: z.number().optional(),
-  wins: z.number().optional(),
-  losses: z.number().optional(),
-});
-
-export type PlayerProfile = z.infer<typeof PlayerProfileSchema>;
-
-/**
- * Parsed match for display
- */
-export const ParsedMatchSchema = z.object({
-  matchId: z.string(),
-  gameCreation: z.number(),
-  gameDuration: z.number(),
-  gameMode: z.string(),
-  queueId: z.number(),
-  champion: z.object({
-    name: z.string(),
-    id: z.number(),
-  }),
-  kills: z.number(),
-  deaths: z.number(),
-  assists: z.number(),
-  kda: z.number(),
-  cs: z.number(),
-  gold: z.number(),
-  damage: z.number(),
-  win: z.boolean(),
-  teamPosition: z.string().optional(),
-  level: z.number(),
-});
-
-export type ParsedMatch = z.infer<typeof ParsedMatchSchema>;
