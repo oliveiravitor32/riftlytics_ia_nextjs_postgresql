@@ -19,13 +19,13 @@ export function isRateLimitError(error: unknown): error is ApiRequestError {
   return error instanceof ApiRequestError && error.status === 429;
 }
 
-/** GET an /api route and parse its JSON, throwing ApiRequestError on failure */
-export async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+/** Calls an /api route and parses its JSON, throwing ApiRequestError on failure */
+async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, init);
   if (response.ok) return response.json();
 
   const body = await response.json().catch(() => ({}));
-  // /api/rank sends retryAfter at the top level, the other routes in context
+  // rank/refresh send retryAfter at the top level, the other routes in context
   const retryAfter =
     Number(
       body.retryAfter ??
@@ -38,6 +38,10 @@ export async function getJson<T>(url: string): Promise<T> {
     retryAfter
   );
 }
+
+export const getJson = <T>(url: string) => requestJson<T>(url);
+export const postJson = <T>(url: string) =>
+  requestJson<T>(url, { method: 'POST' });
 
 /** react-query `retry`: up to 2 retries, except for rate limits */
 export function retryUnlessRateLimited(failureCount: number, error: Error) {

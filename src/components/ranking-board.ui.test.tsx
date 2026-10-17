@@ -16,9 +16,10 @@ import {
 } from '@/src/services/playerService';
 import { compareRank } from '@/src/lib/rank-order';
 import { profileHref } from '@/src/lib/riot-id';
-import { clearProfileCache } from '@/src/services/profileService';
+import { invalidateProfile } from '@/src/services/profileService';
 import type { RankResponse } from '@/src/queries/useRankQuery';
 import { apiCalls } from '@/jest/api-bridge';
+import { RIOT_WAIT_MS } from '@/jest/timeouts';
 
 let players: TrackedPlayer[];
 // Real rank of each player, read through the real route (warms its cache)
@@ -56,7 +57,9 @@ function expectedOrder(field: 'rankInfo' | 'flexRankInfo') {
 
 async function renderedOrder() {
   const panel = await screen.findByRole('tabpanel');
-  await waitFor(() => expect(panel).not.toHaveAttribute('aria-busy', 'true'));
+  await waitFor(() => expect(panel).not.toHaveAttribute('aria-busy', 'true'), {
+    timeout: RIOT_WAIT_MS,
+  });
   const list = panel.querySelector('ol');
   return list
     ? within(list)
@@ -123,7 +126,7 @@ it('switching tabs reuses the cache (no new /api requests)', async () => {
   expect(apiCalls).toHaveLength(callsAfterLoad);
 });
 
-it('"Atualizar" refetches every player bypassing the server cache', async () => {
+it('"Atualizar" forces a reload of every player on the server', async () => {
   const user = userEvent.setup();
   renderBoard();
   await renderedOrder();
@@ -131,12 +134,33 @@ it('"Atualizar" refetches every player bypassing the server cache', async () => 
 
   await user.click(screen.getByRole('button', { name: /atualizar/i }));
 
-  await waitFor(() =>
-    expect(apiCalls.filter((u) => u.includes('refresh=1'))).toHaveLength(
-      players.length
-    )
+  await waitFor(
+    () =>
+      expect(
+        apiCalls.filter((u) => u.startsWith('/api/refresh/'))
+      ).toHaveLength(players.length),
+    { timeout: RIOT_WAIT_MS }
   );
-  expect(await screen.findByText(/Atualizado às/)).toBeInTheDocument();
+  expect(
+    await screen.findByText(/Atualizado às/, undefined, {
+      timeout: RIOT_WAIT_MS,
+    })
+  ).toBeInTheDocument();
+});
+
+it('a second "Atualizar" within 2 minutes is refused with a countdown', async () => {
+  const user = userEvent.setup();
+  renderBoard();
+  await renderedOrder();
+  const button = screen.getByRole('button', { name: /atualizar/i });
+
+  // The previous test already refreshed everyone: the server lock is active
+  await user.click(button);
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(
+    /tente atualizar de novo em \d+s/i
+  );
+  expect(button).toBeDisabled();
 });
 
 it('a player whose rank fails to load is listed with the error', async () => {
@@ -154,10 +178,12 @@ it('a player whose rank fails to load is listed with the error', async () => {
   );
 
   const aside = await screen.findByRole('complementary', undefined, {
-    timeout: 15_000,
+    timeout: RIOT_WAIT_MS,
   });
-  await waitFor(() =>
-    expect(aside).toHaveTextContent('zz-nao-existe-777 (erro ao carregar)')
+  await waitFor(
+    () =>
+      expect(aside).toHaveTextContent('zz-nao-existe-777 (erro ao carregar)'),
+    { timeout: RIOT_WAIT_MS }
   );
 });
 
@@ -169,7 +195,7 @@ it('shows the friendly rate-limit alert and disables refresh on 429', async () =
     String(input).includes('riotgames.com')
       ? new Response('{}', { status: 429, headers: { 'Retry-After': '1' } })
       : realFetch(input, init);
-  clearProfileCache();
+  for (const p of players) await invalidateProfile(riotId(p), p.region);
 
   try {
     renderBoard();

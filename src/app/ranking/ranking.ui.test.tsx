@@ -6,6 +6,7 @@ import { screen } from '@testing-library/react';
 import RankingPage, { metadata } from './page';
 import { getActivePlayers } from '@/src/services/playerService';
 import { renderApp } from '@/jest/render-app';
+import { RIOT_WAIT_MS } from '@/jest/timeouts';
 
 it('renders the title and a ranking with every active player', async () => {
   const players = await getActivePlayers();
@@ -20,7 +21,11 @@ it('renders the title and a ranking with every active player', async () => {
   // Every player ends up either ranked or in the "sem ranque" list
   for (const p of players) {
     expect(
-      await screen.findByText(p.gameName, { exact: false }, { timeout: 30_000 })
+      await screen.findByText(
+        p.gameName,
+        { exact: false },
+        { timeout: RIOT_WAIT_MS }
+      )
     ).toBeInTheDocument();
   }
 });

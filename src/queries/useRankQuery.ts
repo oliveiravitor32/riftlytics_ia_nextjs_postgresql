@@ -1,10 +1,10 @@
 /**
- * Rank queries for the ranking page (5-minute cache, shared with the server)
+ * Rank queries for the ranking page (10-minute cache, shared with the server)
  */
 
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { LeagueEntry } from '@/src/lib/validators';
-import { getJson, retryUnlessRateLimited } from './api-client';
+import { getJson, postJson, retryUnlessRateLimited } from './api-client';
 
 /** What /api/rank returns */
 export type RankResponse = {
@@ -16,12 +16,16 @@ export type RankResponse = {
 
 export function fetchRank(
   riotId: string,
-  region: string,
-  refresh = false
+  region: string
 ): Promise<RankResponse> {
-  const params = new URLSearchParams({ region });
-  if (refresh) params.set('refresh', '1');
-  return getJson(`/api/rank/${encodeURIComponent(riotId)}?${params}`);
+  return getJson(
+    `/api/rank/${encodeURIComponent(riotId)}?region=${encodeURIComponent(region)}`
+  );
+}
+
+/** Forced reload (server allows one per player every 2 minutes) */
+export function refreshRank(riotId: string): Promise<RankResponse> {
+  return postJson(`/api/refresh/${encodeURIComponent(riotId)}`);
 }
 
 export function rankQueryOptions(riotId: string, region: string) {
