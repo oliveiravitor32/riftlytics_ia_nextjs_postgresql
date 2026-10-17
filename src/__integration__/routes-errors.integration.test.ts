@@ -9,8 +9,9 @@ import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { GET as runCron } from '@/src/app/api/cron/pdl-snapshot/route';
-import { clearProfileCache } from '@/src/services/profileService';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
+import { leagueApiService } from '@/src/services/leagueApiService';
+import { redis, cacheKey } from '@/src/lib/redis';
 
 type Route = (
   request: NextRequest,
@@ -71,37 +72,40 @@ describe('region defaults to BR (the group plays there)', () => {
 });
 
 describe('GET /api/matches query parameters', () => {
-  let spy: jest.SpyInstance;
-  const sentToRiot = () =>
-    spy.mock.calls.map(([url]) => String(url)).find((u) => u.includes('/ids?'));
-
-  beforeEach(() => {
-    spy = jest.spyOn(global, 'fetch');
-  });
-  afterEach(() => spy.mockRestore());
+  // The page of match ids is cached under its (start, count): checking which
+  // key exists tells what the route asked for, cache hit or miss
+  async function pageKeyExists(start: number, count: number) {
+    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
+    return (
+      (await redis.exists(cacheKey(`partidas:${puuid}:${start}:${count}`))) ===
+      1
+    );
+  }
 
   it('defaults to the most recent matches (start=0, count=10)', async () => {
     const res = await call(getMatches, REAL, 'matches');
 
     expect(res.status).toBe(200);
-    expect(sentToRiot()).toMatch(/start=0&count=10$/);
+    expect(await pageKeyExists(0, 10)).toBe(true);
   });
 
   it('ignores non-numeric start/count instead of sending NaN to Riot', async () => {
+    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
+    await redis.del(cacheKey(`partidas:${puuid}:0:10`));
+
     const res = await call(getMatches, REAL, 'matches', '&start=abc&count=xyz');
 
     expect(res.status).toBe(200);
-    expect(sentToRiot()).toMatch(/start=0&count=10$/);
+    expect(await pageKeyExists(0, 10)).toBe(true);
+    expect(await pageKeyExists(NaN, NaN)).toBe(false);
   });
 
   it('clamps count to the page limit and start to >= 0', async () => {
     await call(getMatches, REAL, 'matches', '&start=-5&count=999');
 
-    expect(sentToRiot()).toMatch(
-      new RegExp(
-        `start=0&count=${RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE}$`
-      )
-    );
+    expect(
+      await pageKeyExists(0, RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE)
+    ).toBe(true);
   });
 });
 
@@ -131,7 +135,6 @@ describe('Riot rate limit → 429 with retryAfter', () => {
   });
 
   it('rank route (bypassing its cache)', async () => {
-    clearProfileCache();
     riotAnswers429();
     const res = await call(
       getRank,

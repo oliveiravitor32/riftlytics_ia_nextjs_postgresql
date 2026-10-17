@@ -1,64 +1,175 @@
 /**
- * Profile data (summoner + Solo/Flex rank) is fetched once and shared for
- * 5 minutes by /api/profile, /api/rank and the profile page. Real Riot + DB.
+ * Profile data (summoner + Solo/Flex rank) lives 10 minutes in the shared
+ * Redis cache. A cache miss for a group player also refreshes today's PDL
+ * snapshot in the DB; "Atualizar" forces a refetch, at most once per 2 min.
+ * Real Riot + Supabase + Upstash.
  */
 
 import { NextRequest } from 'next/server';
 import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
-import { clearProfileCache } from '@/src/services/profileService';
+import { POST as refresh } from '@/src/app/api/refresh/[summonerName]/route';
+import { invalidateProfile } from '@/src/services/profileService';
+import { brasiliaDate } from '@/src/services/snapshotService';
+import { prisma } from '@/src/lib/db';
+import { redis, cacheKey } from '@/src/lib/redis';
 
-const NAME = encodeURIComponent('Neutro7#BR1');
+const PLAYER = { gameName: 'Neutro7', tagLine: 'BR1', region: 'br1' };
+const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
+const NAME = encodeURIComponent(RIOT_ID);
 
-const request = (path: string, query = '') =>
-  new NextRequest(`http://localhost/api/${path}/${NAME}?region=br1${query}`);
-const params = { params: Promise.resolve({ summonerName: NAME }) };
+const get = (path: string) =>
+  new NextRequest(`http://localhost/api/${path}/${NAME}?region=br1`);
+const params = (name = NAME) => ({
+  params: Promise.resolve({ summonerName: name }),
+});
+const post = (name = NAME) =>
+  refresh(
+    new NextRequest(`http://localhost/api/refresh/${name}`, { method: 'POST' }),
+    params(name)
+  );
 
 let spy: jest.SpyInstance;
 const riotCalls = () =>
   spy.mock.calls.filter(([url]) => String(url).includes('riotgames.com'))
     .length;
 
-beforeEach(() => {
-  clearProfileCache();
+async function todaysSnapshot() {
+  return prisma.pDLSnapshot.findFirst({
+    where: {
+      queueType: 'RANKED_SOLO_5x5',
+      snapshotDate: brasiliaDate(),
+      player: { gameName: PLAYER.gameName, tagLine: PLAYER.tagLine },
+    },
+  });
+}
+
+beforeEach(async () => {
+  await invalidateProfile(RIOT_ID, PLAYER.region);
+  await redis.del(cacheKey(`refresh-lock:${RIOT_ID.toLowerCase()}`));
   spy = jest.spyOn(global, 'fetch');
 });
 afterEach(() => spy.mockRestore());
 
-it('serves a repeated /api/profile from cache without calling Riot', async () => {
-  const first = await getProfile(request('profile'), params);
-  expect(first.headers.get('X-Cache')).toBe('MISS');
+describe('shared 10-minute cache', () => {
+  it('serves a repeated /api/profile from Redis without calling Riot', async () => {
+    const first = await getProfile(get('profile'), params());
+    expect(first.headers.get('X-Cache')).toBe('MISS');
 
-  spy.mockClear();
-  const second = await getProfile(request('profile'), params);
+    spy.mockClear();
+    const second = await getProfile(get('profile'), params());
 
-  expect(second.headers.get('X-Cache')).toBe('HIT');
-  expect(riotCalls()).toBe(0);
-  expect(await second.json()).toEqual(await first.json());
+    expect(second.headers.get('X-Cache')).toBe('HIT');
+    expect(riotCalls()).toBe(0);
+    expect(await second.json()).toEqual(await first.json());
+  });
+
+  it('expires after 10 minutes', async () => {
+    await getProfile(get('profile'), params());
+    const ttl = await redis.ttl(
+      cacheKey(`perfil:br1:${RIOT_ID.toLowerCase()}`)
+    );
+
+    expect(ttl).toBeGreaterThan(590);
+    expect(ttl).toBeLessThanOrEqual(600);
+  });
+
+  it('is shared between server instances (not in process memory)', async () => {
+    await getProfile(get('profile'), params());
+
+    let otherInstance!: typeof getRank;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      otherInstance = require('@/src/app/api/rank/[summonerName]/route').GET;
+    });
+    spy.mockClear();
+    const res = await otherInstance(get('rank'), params());
+
+    expect(res.headers.get('X-Cache')).toBe('HIT');
+    expect(riotCalls()).toBe(0);
+  });
+
+  it('/api/rank and /api/profile read the same entry', async () => {
+    const profile = await (await getProfile(get('profile'), params())).json();
+    const rank = await (await getRank(get('rank'), params())).json();
+
+    expect(rank.rankInfo).toEqual(profile.rankInfo);
+    expect(rank.flexRankInfo).toEqual(profile.flexRankInfo);
+  });
 });
 
-it('/api/rank reuses what /api/profile already fetched', async () => {
-  const profile = await (await getProfile(request('profile'), params)).json();
+describe("today's PDL snapshot follows cache misses", () => {
+  it('a miss upserts today (Brasília date) with the fresh rank', async () => {
+    const body = await (await getProfile(get('profile'), params())).json();
+    const snapshot = await todaysSnapshot();
 
-  spy.mockClear();
-  const rank = await getRank(request('rank'), params);
-  const body = await rank.json();
+    expect(snapshot).toMatchObject({
+      tier: body.rankInfo.tier,
+      rank: body.rankInfo.rank,
+      leaguePoints: body.rankInfo.leaguePoints,
+    });
+    expect(Date.now() - snapshot!.capturedAt.getTime()).toBeLessThan(60_000);
+  });
 
-  expect(rank.headers.get('X-Cache')).toBe('HIT');
-  expect(riotCalls()).toBe(0);
-  expect(body.name).toBe(profile.name);
-  expect(body.rankInfo).toEqual(profile.rankInfo);
-  expect(body.flexRankInfo).toEqual(profile.flexRankInfo);
+  it('a cache hit does not touch the DB', async () => {
+    await getProfile(get('profile'), params());
+    const before = (await todaysSnapshot())!.capturedAt;
+
+    await getProfile(get('profile'), params());
+
+    expect((await todaysSnapshot())!.capturedAt).toEqual(before);
+  });
 });
 
-it('?refresh=1 bypasses the cache on both routes', async () => {
-  await getProfile(request('profile'), params);
+describe('POST /api/refresh (forced reload)', () => {
+  it("refetches from Riot, renews the cache and today's snapshot", async () => {
+    await getProfile(get('profile'), params());
+    const before = (await todaysSnapshot())!.capturedAt;
 
-  spy.mockClear();
-  const profile = await getProfile(request('profile', '&refresh=1'), params);
-  expect(profile.headers.get('X-Cache')).toBe('MISS');
-  expect(riotCalls()).toBeGreaterThan(0);
+    spy.mockClear();
+    const res = await post();
 
-  const rank = await getRank(request('rank', '&refresh=1'), params);
-  expect(rank.headers.get('X-Cache')).toBe('MISS');
+    expect(res.status).toBe(200);
+    expect(riotCalls()).toBeGreaterThan(0);
+    expect((await todaysSnapshot())!.capturedAt.getTime()).toBeGreaterThan(
+      before.getTime()
+    );
+    const after = await getProfile(get('profile'), params());
+    expect(after.headers.get('X-Cache')).toBe('HIT');
+  });
+
+  it('allows one refresh per player every 2 minutes', async () => {
+    expect((await post()).status).toBe(200);
+
+    spy.mockClear();
+    const second = await post();
+
+    expect(second.status).toBe(429);
+    const wait = Number(second.headers.get('Retry-After'));
+    expect(wait).toBeGreaterThan(0);
+    expect(wait).toBeLessThanOrEqual(120);
+    expect(await second.json()).toMatchObject({
+      error: 'REFRESH_LOCKED',
+      retryAfter: wait,
+    });
+    expect(riotCalls()).toBe(0);
+  });
+
+  it('only group players can be refreshed', async () => {
+    const res = await post(encodeURIComponent('Arthurmtd#br1'));
+
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('brasiliaDate', () => {
+  it('is the calendar day in São Paulo (UTC-3), as a UTC midnight', () => {
+    // 01:30 UTC on the 17th is still 22:30 on the 16th in Brasília
+    expect(brasiliaDate(new Date('2026-10-17T01:30:00Z')).toISOString()).toBe(
+      '2026-10-16T00:00:00.000Z'
+    );
+    expect(brasiliaDate(new Date('2026-10-17T03:30:00Z')).toISOString()).toBe(
+      '2026-10-17T00:00:00.000Z'
+    );
+  });
 });

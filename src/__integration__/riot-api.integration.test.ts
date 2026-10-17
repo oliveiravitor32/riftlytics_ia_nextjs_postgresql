@@ -3,7 +3,7 @@
  * Calls our route handlers and service exactly as production does — no mocks.
  * Run: npm run test:integration  (needs RIOT_API_KEY in .env.local)
  *
- * Quota: ~50 requests per run (Riot dev key: 100 per 2 min).
+ * Quota: ~30 Riot requests per run (shared limiter: 90 per 2 min).
  * The cron test writes today's snapshots to the real database (idempotent).
  */
 
@@ -12,9 +12,14 @@ import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { GET as runSnapshotCron } from '@/src/app/api/cron/pdl-snapshot/route';
-import { getPdlHistory } from '@/src/services/snapshotService';
+import {
+  brasiliaDate,
+  getPdlHistory,
+  saveSnapshot,
+} from '@/src/services/snapshotService';
+import { prisma } from '@/src/lib/db';
 import { leagueApiService } from '@/src/services/leagueApiService';
-import { clearProfileCache } from '@/src/services/profileService';
+import { invalidateProfile } from '@/src/services/profileService';
 
 // A real, ranked player from the group
 const player = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
@@ -128,7 +133,7 @@ describe('GET /api/profile/[summonerName]', () => {
 });
 
 describe('GET /api/rank/[summonerName]', () => {
-  beforeAll(() => clearProfileCache());
+  beforeAll(() => invalidateProfile(riotId, region));
 
   it('first call goes to Riot (MISS)', async () => {
     const res = await getRank(request('rank'), params());
@@ -140,18 +145,11 @@ describe('GET /api/rank/[summonerName]', () => {
     expectRankEntry(body.flexRankInfo);
   });
 
-  it('second call is served from the 5-minute cache (HIT, no request)', async () => {
+  it('second call is served from the 10-minute cache (HIT, no request)', async () => {
     const res = await getRank(request('rank'), params());
 
     expect(res.headers.get('X-Cache')).toBe('HIT');
     expect(riotCalls()).toHaveLength(0);
-  });
-
-  it('refresh=1 bypasses the cache', async () => {
-    const res = await getRank(request('rank', '&refresh=1'), params());
-
-    expect(res.headers.get('X-Cache')).toBe('MISS');
-    expect(riotCalls().length).toBeGreaterThan(0);
   });
 });
 
@@ -194,9 +192,22 @@ describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
     expect(body.failed).toEqual([]);
     expect(body.snapshots).toBeGreaterThan(0);
 
-    // Re-running on the same day updates instead of adding points
+    // Saving the same day again updates the row instead of adding a point
+    // (checked through saveSnapshot directly: no extra Riot calls)
     const before = await getPdlHistory(player.gameName, player.tagLine);
-    await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
+    const tracked = await prisma.player.findFirstOrThrow({
+      where: { gameName: player.gameName, tagLine: player.tagLine },
+    });
+    const today = await prisma.pDLSnapshot.findFirstOrThrow({
+      where: { playerId: tracked.id, snapshotDate: brasiliaDate() },
+    });
+    await saveSnapshot(tracked.id, [
+      {
+        ...today,
+        queueType: today.queueType,
+        leaguePoints: today.leaguePoints,
+      },
+    ]);
     const after = await getPdlHistory(player.gameName, player.tagLine);
     expect(after).toHaveLength(before.length);
   });
@@ -214,23 +225,5 @@ describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
         expect(p.leaguePoints).toEqual(expect.any(Number));
       }
     );
-  });
-});
-
-describe('token bucket against the real API', () => {
-  it('a 20-request burst is spread out (18/s) and Riot never answers 429', async () => {
-    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
-    const started = Date.now();
-
-    const results = await Promise.allSettled(
-      Array.from({ length: 20 }, () =>
-        leagueApiService.getLeagueEntries(puuid, region)
-      )
-    );
-
-    const rejected = results.filter((r) => r.status === 'rejected');
-    expect(rejected).toEqual([]);
-    // Bucket of 18 per second: the last 2 must wait for the next window
-    expect(Date.now() - started).toBeGreaterThanOrEqual(900);
   });
 });

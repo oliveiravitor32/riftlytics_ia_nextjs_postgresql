@@ -85,10 +85,9 @@ export default async function ProfilePage({
 
   let data;
   try {
-    const [{ profile }, pdlHistory] = await Promise.all([
-      getRankedProfile(riotId, region),
-      getPdlHistory(id.gameName, id.tagLine),
-    ]);
+    const { profile } = await getRankedProfile(riotId, region);
+    // Read after the profile: a cache miss has just updated today's snapshot
+    const pdlHistory = await getPdlHistory(id.gameName, id.tagLine);
     data = { profile, pdlHistory };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();

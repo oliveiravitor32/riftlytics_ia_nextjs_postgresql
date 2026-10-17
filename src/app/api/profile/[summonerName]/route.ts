@@ -1,6 +1,6 @@
 /**
  * API Route: GET /api/profile/[summonerName]
- * Summoner + Solo/Flex rank (5-min shared cache, ?refresh=1 bypasses) and the
+ * Summoner + Solo/Flex rank (10-min shared cache in Redis) and the
  * stored PDL history. Match history is intentionally not fetched (home page).
  */
 
@@ -27,13 +27,9 @@ export async function GET(
   try {
     const riotId = decodeURIComponent(summonerName);
     const [gameName, tagLine = ''] = riotId.split('#');
-    const [{ profile, cached }, pdlHistory] = await Promise.all([
-      getRankedProfile(riotId, region, {
-        refresh: searchParams.get('refresh') === '1',
-      }),
-      // Real daily snapshots from the DB (empty until the cron has run)
-      getPdlHistory(gameName, tagLine),
-    ]);
+    const { profile, cached } = await getRankedProfile(riotId, region);
+    // Read after the profile: a cache miss has just updated today's snapshot
+    const pdlHistory = await getPdlHistory(gameName, tagLine);
 
     return NextResponse.json(
       { ...profile, pdlHistory },
