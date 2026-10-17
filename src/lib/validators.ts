@@ -52,6 +52,9 @@ export const ParticipantSchema = z.object({
   championLevel: z.number().optional(),
   champLevel: z.number().optional(),
   summonerName: z.string().optional(),
+  // Riot ID of the player (summonerName is empty for most accounts today)
+  riotIdGameName: z.string().optional(),
+  riotIdTagline: z.string().optional(),
   kills: z.number(),
   deaths: z.number(),
   assists: z.number(),

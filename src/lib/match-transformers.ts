@@ -123,18 +123,9 @@ function perkImage(path: string): string {
   return `https://ddragon.leagueoflegends.com/cdn/img/perk-images/${path}`;
 }
 
+// Riot's championName is already the Data Dragon id (e.g. "MonkeyKing")
 function championImage(championName: string): string {
-  const normalizedChampionName = championName
-    .replace(/['\s.&]/g, '')
-    .replace(/Kaisa/g, 'Kaisa')
-    .replace(/Chogath/g, 'Chogath')
-    .replace(/Leesin/g, 'LeeSin')
-    .replace(/MonkeyKing/g, 'MonkeyKing')
-    .replace(/NunuWillump/g, 'Nunu')
-    .replace(/RekSai/g, 'RekSai')
-    .replace(/Velkoz/g, 'Velkoz');
-
-  return ddragon(`champion/${normalizedChampionName}.png`);
+  return ddragon(`champion/${championName}.png`);
 }
 
 function itemImage(itemId: number | undefined): string | null {
@@ -205,7 +196,7 @@ function spellFromId(spellId: number | undefined): {
   image: string;
 } {
   if (!spellId || !spellImages[spellId]) {
-    return { name: 'Unknown', image: ddragon('spell/SummonerFlash.png') };
+    return { name: 'Desconhecido', image: ddragon('spell/SummonerFlash.png') };
   }
 
   return spellImages[spellId];
@@ -231,9 +222,13 @@ function keystoneFromId(
   return runeTreeFromId(styleId);
 }
 
+function displayName(participant: Participant): string | undefined {
+  return participant.riotIdGameName || participant.summonerName || undefined;
+}
+
 function participantToTeammate(participant: Participant) {
   return {
-    name: participant.summonerName || participant.puuid.slice(0, 8),
+    name: displayName(participant) ?? participant.puuid.slice(0, 8),
     champion: participant.championName,
     image: championImage(participant.championName),
   };
@@ -263,10 +258,10 @@ export function buildGameResumeMatch(
   playerPuuid: string,
   fallbackPlayerName?: string
 ): GameResumeMatch {
-  const player =
-    match.info.participants.find(
-      (participant) => participant.puuid === playerPuuid
-    ) || match.info.participants[0];
+  // The match came from this player's history, so they are in it
+  const player = match.info.participants.find(
+    (participant) => participant.puuid === playerPuuid
+  )!;
   const teamId = player.teamId;
   const allies = match.info.participants
     .filter((participant) => participant.teamId === teamId)
@@ -280,8 +275,7 @@ export function buildGameResumeMatch(
       .find((participant) => matchesPosition(participant, player)) ||
     match.info.participants.find(
       (participant) => participant.teamId !== teamId
-    ) ||
-    player;
+    )!;
   const styles = player.perks?.styles || [];
   const primaryStyle = styles[0]?.style || 8000;
   const primarySelection = styles[0]?.selections?.[0]?.perk;
@@ -306,7 +300,7 @@ export function buildGameResumeMatch(
     result: player.win ? 'win' : 'loss',
     playerSide: teamId === 100 ? 'blue' : 'red',
     playerName:
-      player.summonerName || fallbackPlayerName || playerPuuid.slice(0, 8),
+      displayName(player) ?? fallbackPlayerName ?? playerPuuid.slice(0, 8),
     champion: player.championName,
     championImage: championImage(player.championName),
     laneOpponent: participantToTeammate(laneOpponentParticipant),
@@ -315,7 +309,6 @@ export function buildGameResumeMatch(
     duration: formatDuration(match.info.gameDuration),
     kda: `${player.kills}/${player.deaths}/${player.assists}`,
     cs: player.totalMinionsKilled,
-    lp: 0,
     damageShare,
     spells: [spellFromId(player.summoner1Id), spellFromId(player.summoner2Id)],
     items: itemIds
