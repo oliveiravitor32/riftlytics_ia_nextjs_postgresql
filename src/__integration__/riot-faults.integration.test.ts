@@ -131,3 +131,31 @@ it('429 is not retried and pauses the shared limiter for Retry-After', async () 
   await riotLimiter.acquire();
   expect(Date.now() - started).toBeGreaterThanOrEqual(900);
 });
+
+it('match list and match details errors reach the caller', async () => {
+  fakeRiot((url) => json({}, url.includes('/ids?') ? 403 : 404));
+
+  await expect(
+    leagueApiService.getMatchList(freshPuuid(), 0, 5)
+  ).rejects.toMatchObject({ statusCode: 403 });
+  await expect(
+    leagueApiService.getMatchDetails(`BR1_FAULT_${seq++}`)
+  ).rejects.toBeInstanceOf(NotFoundError);
+});
+
+it('fails clearly without calling Riot when RIOT_API_KEY is missing', async () => {
+  const previous = process.env.RIOT_API_KEY;
+  process.env.RIOT_API_KEY = '';
+  let isolated!: typeof leagueApiService;
+  jest.isolateModules(() => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    isolated = require('@/src/services/leagueApiService').leagueApiService;
+  });
+  process.env.RIOT_API_KEY = previous;
+  fakeRiot(() => json([]));
+
+  await expect(isolated.getLeagueEntries(freshPuuid(), 'br1')).rejects.toThrow(
+    'RIOT_API_KEY environment variable is not set'
+  );
+  expect(riotCalls).toBe(0);
+});
