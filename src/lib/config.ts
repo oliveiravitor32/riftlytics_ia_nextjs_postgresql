@@ -25,7 +25,6 @@ export const config = {
   riotApi: {
     apiKey: process.env.RIOT_API_KEY || '',
     baseUrl: 'https://americas.api.riotgames.com',
-    platformBaseUrl: 'https://na1.api.riotgames.com',
     datadragonBaseUrl: 'https://ddragon.leagueoflegends.com',
   },
 
@@ -60,25 +59,5 @@ export const config = {
       process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
   },
 } as const;
-
-/**
- * Validate that critical environment variables are set
- */
-export function validateConfig(): void {
-  const required = [
-    'RIOT_API_KEY',
-    'DATABASE_URL',
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY',
-  ];
-
-  const missing = required.filter((key) => !process.env[key]);
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}. Check .env.local`
-    );
-  }
-}
 
 export type Config = typeof config;
