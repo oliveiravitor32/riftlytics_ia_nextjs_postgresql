@@ -44,19 +44,6 @@ export function ProfileCard({
     error,
   } = useProfileQuery(summonerId, { region });
 
-  if (isLoading) {
-    return (
-      <Card className="border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center justify-center h-40">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
-            <p className="text-muted-foreground">Carregando {displayName}...</p>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
   if (isError) {
     return (
       <Card className="border-border bg-card p-6 shadow-sm">
@@ -81,10 +68,15 @@ export function ProfileCard({
     );
   }
 
-  if (!profile) {
+  if (isLoading || !profile) {
     return (
       <Card className="border-border bg-card p-6 shadow-sm">
-        <p className="text-muted-foreground">Sem dados de perfil</p>
+        <div className="flex items-center justify-center h-40">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+            <p className="text-muted-foreground">Carregando {displayName}...</p>
+          </div>
+        </div>
       </Card>
     );
   }
