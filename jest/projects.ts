@@ -22,6 +22,8 @@ export const coverageFrom = [
   // Generated Prisma client and shadcn primitives aren't our code
   '!src/generated/**',
   '!src/components/ui/**',
+  // Root <html> wiring of providers; can't render inside a test container
+  '!src/app/layout.tsx',
 ];
 
 // Prisma 7 loads its query compiler as ESM (.mjs) at query time, so it must

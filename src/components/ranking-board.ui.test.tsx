@@ -139,6 +139,28 @@ it('"Atualizar" refetches every player bypassing the server cache', async () => 
   expect(await screen.findByText(/Atualizado às/)).toBeInTheDocument();
 });
 
+it('a player whose rank fails to load is listed with the error', async () => {
+  const ghost: TrackedPlayer = {
+    gameName: 'zz-nao-existe-777',
+    tagLine: '0000',
+    region: 'br1',
+    displayName: 'Fantasma',
+    avatarUrl: null,
+  };
+  render(
+    <QueryProvider client={createQueryClient()}>
+      <RankingBoard players={[...players, ghost]} />
+    </QueryProvider>
+  );
+
+  const aside = await screen.findByRole('complementary', undefined, {
+    timeout: 15_000,
+  });
+  await waitFor(() =>
+    expect(aside).toHaveTextContent('zz-nao-existe-777 (erro ao carregar)')
+  );
+});
+
 // Last: Riot answering 429 can't be triggered safely, so only Riot's HTTP
 // response is faked here; everything of ours runs for real.
 it('shows the friendly rate-limit alert and disables refresh on 429', async () => {
