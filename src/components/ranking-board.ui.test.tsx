@@ -154,6 +154,10 @@ it('shows the friendly rate-limit alert and disables refresh on 429', async () =
       /muitas consultas seguidas/i
     );
     expect(screen.getByRole('button', { name: /atualizar/i })).toBeDisabled();
+    // One request per player: 429 is never retried by the client
+    expect(apiCalls.filter((u) => u.startsWith('/api/rank/'))).toHaveLength(
+      players.length
+    );
   } finally {
     globalThis.__nodeFetch = realFetch;
   }

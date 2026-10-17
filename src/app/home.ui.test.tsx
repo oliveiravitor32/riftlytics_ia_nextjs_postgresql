@@ -15,6 +15,7 @@ import { formatTier } from '@/src/lib/rank-labels';
 import { profileHref } from '@/src/lib/riot-id';
 import type { LeagueEntry } from '@/src/lib/validators';
 import { renderApp } from '@/jest/render-app';
+import { apiCalls } from '@/jest/api-bridge';
 
 type Profile = {
   name: string;
@@ -168,6 +169,10 @@ it('a rate-limited card shows the friendly message with the wait time', async ()
       await screen.findByText('Muitas consultas seguidas')
     ).toBeInTheDocument();
     expect(screen.getByText(/Recarregue a página em 1s/)).toBeInTheDocument();
+    // 429 is never retried by the client (would only burn more quota)
+    expect(apiCalls.filter((u) => u.startsWith('/api/profile/'))).toHaveLength(
+      1
+    );
   } finally {
     globalThis.__nodeFetch = realFetch;
   }
