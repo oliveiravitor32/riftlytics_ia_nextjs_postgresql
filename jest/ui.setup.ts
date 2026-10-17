@@ -10,6 +10,45 @@ if (!process.env.RIOT_API_KEY || !process.env.DATABASE_URL) {
 }
 process.env.LOG_LEVEL = 'error';
 
+// Browser APIs jsdom lacks (environment gaps, not app behavior):
+// recharts' ResponsiveContainer measures itself with ResizeObserver
+class ResizeObserverStub {
+  constructor(private callback: ResizeObserverCallback) {}
+  observe(target: Element) {
+    this.callback(
+      [
+        {
+          target,
+          contentRect: { width: 600, height: 200 } as DOMRectReadOnly,
+        } as ResizeObserverEntry,
+      ],
+      this as unknown as ResizeObserver
+    );
+  }
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver =
+  ResizeObserverStub as unknown as typeof ResizeObserver;
+
+// Radix Select uses pointer capture and scrollIntoView
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};
+Element.prototype.scrollIntoView ??= () => {};
+
+// next-themes reads the system color scheme
+window.matchMedia = (query: string) =>
+  ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  }) as MediaQueryList;
+
 // Imported after the env is loaded: the routes read it at module load
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { bridgedFetch, apiCalls } = require('./api-bridge');
