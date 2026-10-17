@@ -11,3 +11,6 @@ if (!process.env.RIOT_API_KEY) {
 
 // Keep the output readable; only real problems are logged
 process.env.LOG_LEVEL = 'error';
+
+// Each test file gets its own Redis namespace, deleted in jest/server.setup.ts
+process.env.CACHE_PREFIX = `test:${crypto.randomUUID().slice(0, 8)}:`;
