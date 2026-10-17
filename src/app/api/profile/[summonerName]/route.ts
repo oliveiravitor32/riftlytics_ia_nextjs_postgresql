@@ -22,14 +22,6 @@ export async function GET(
   const region = searchParams.get('region') || 'na1';
 
   try {
-    if (!summonerName || typeof summonerName !== 'string') {
-      logger.warn('Invalid summoner name parameter', { summonerName });
-      return NextResponse.json(
-        { error: 'Invalid summoner name' },
-        { status: 400 }
-      );
-    }
-
     logger.info('Profile API: Fetching profile', { summonerName, region });
 
     // PUUID first (cached forever), then summoner + rank in parallel.
