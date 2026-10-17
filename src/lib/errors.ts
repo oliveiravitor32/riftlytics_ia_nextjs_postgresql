@@ -114,11 +114,5 @@ export function getErrorMessage(error: unknown): string {
  * Extract status code from any error type
  */
 export function getErrorStatusCode(error: unknown): number {
-  if (isAppError(error)) {
-    return error.statusCode;
-  }
-  if (error instanceof Error) {
-    return 500;
-  }
-  return 500;
+  return isAppError(error) ? error.statusCode : 500;
 }
