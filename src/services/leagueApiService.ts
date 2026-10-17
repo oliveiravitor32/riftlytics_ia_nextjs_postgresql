@@ -126,7 +126,7 @@ class LeagueApiService {
    */
   async getLeagueEntries(
     puuid: string,
-    region = 'na1'
+    region: string
   ): Promise<LeagueEntry[]> {
     // by-summoner was removed by Riot; by-puuid is the current endpoint
     // https://developer.riotgames.com/apis#league-v4

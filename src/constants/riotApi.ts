@@ -39,6 +39,9 @@ export const RIOT_API_CONSTANTS = {
     VN: 'vn2',
   } as const,
 
+  // Region used when a request doesn't say (the group plays in BR)
+  DEFAULT_REGION: 'br1',
+
   // Routing Values (for regional endpoints)
   ROUTING_VALUES: {
     AMERICAS: 'americas',

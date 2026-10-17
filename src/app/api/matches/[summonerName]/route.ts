@@ -24,7 +24,8 @@ export async function GET(
 ) {
   const { summonerName } = await params;
   const { searchParams } = new URL(request.url);
-  const region = searchParams.get('region') || 'na1';
+  const region =
+    searchParams.get('region') || RIOT_API_CONSTANTS.DEFAULT_REGION;
   // Non-numeric values fall back to the defaults (never NaN to Riot)
   const start = Math.max(0, intParam(searchParams.get('start'), 0));
   const requestedCount = Math.max(

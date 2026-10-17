@@ -9,7 +9,7 @@ import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { GET as runCron } from '@/src/app/api/cron/pdl-snapshot/route';
-import { clearRankCache } from '@/src/lib/rank-cache';
+import { clearProfileCache } from '@/src/services/profileService';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 
 type Route = (
@@ -50,6 +50,23 @@ describe('unknown Riot ID → 404 on every route', () => {
     const res = await call(route as Route, MISSING, path);
     expect(res.status).toBe(404);
     expect((await res.json()).error).toMatch(/not found/i);
+  });
+});
+
+describe('region defaults to BR (the group plays there)', () => {
+  it.each([
+    ['profile', getProfile],
+    ['rank', getRank],
+    ['matches', getMatches],
+  ])('%s without ?region', async (path, route) => {
+    const res = await (route as Route)(
+      new NextRequest(`http://localhost/api/${path}/${REAL}`),
+      { params: Promise.resolve({ summonerName: REAL }) }
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    if (path !== 'matches') expect(body.rankInfo).not.toBeNull();
   });
 });
 
@@ -114,7 +131,7 @@ describe('Riot rate limit → 429 with retryAfter', () => {
   });
 
   it('rank route (bypassing its cache)', async () => {
-    clearRankCache();
+    clearProfileCache();
     riotAnswers429();
     const res = await call(
       getRank,
