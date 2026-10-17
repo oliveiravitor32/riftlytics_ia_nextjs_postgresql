@@ -15,6 +15,7 @@ import { toRiotSlug } from '@/src/lib/riot-id';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import { renderApp } from '@/jest/render-app';
+import { clearProfileCache } from '@/src/services/profileService';
 
 const PLAYER = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
@@ -159,6 +160,19 @@ describe('not found', () => {
     ).rejects.toMatchObject(NOT_FOUND);
   });
 
+  it('rejects a real Riot ID that is not in the group', async () => {
+    // Played with FlyerCloud; exists on Riot but isn't a tracked player
+    await expect(
+      ProfilePage(params('br1', toRiotSlug('Arthurmtd', 'br1')))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
+  it('rejects a group player under the wrong region', async () => {
+    await expect(
+      ProfilePage(params('na1', toRiotSlug(PLAYER.gameName, PLAYER.tagLine)))
+    ).rejects.toMatchObject(NOT_FOUND);
+  });
+
   it('rejects a Riot ID that does not exist', async () => {
     await expect(
       ProfilePage(params('br1', toRiotSlug('zz-nao-existe-321', '0000')))
@@ -210,7 +224,8 @@ it('rate limit shows the friendly alert instead of the profile', async () => {
   globalThis.__nodeFetch = global.fetch;
 
   try {
-    renderApp(await ProfilePage(params('br1', toRiotSlug('Sem Cache', '429'))));
+    clearProfileCache();
+    renderApp(await ProfilePage(playerParams));
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Tente recarregar a página em 1s'
     );

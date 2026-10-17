@@ -1,9 +1,4 @@
-import {
-  parseRiotIdInput,
-  parseRiotSlug,
-  profileHref,
-  toRiotSlug,
-} from './riot-id';
+import { parseRiotSlug, profileHref, toRiotSlug } from './riot-id';
 
 describe('riot-id', () => {
   it('round-trips names with spaces and dashes', () => {
@@ -23,15 +18,6 @@ describe('riot-id', () => {
     expect(parseRiotSlug('SemTag')).toBeNull();
     expect(parseRiotSlug('-br1')).toBeNull();
     expect(parseRiotSlug('Nome-')).toBeNull();
-  });
-
-  it('parses the search input "Name#TAG", trimming spaces', () => {
-    expect(parseRiotIdInput('  Neutro7 # BR1 ')).toEqual({
-      gameName: 'Neutro7',
-      tagLine: 'BR1',
-    });
-    expect(parseRiotIdInput('SemTag')).toBeNull();
-    expect(parseRiotIdInput('#BR1')).toBeNull();
   });
 
   it('builds the profile URL', () => {

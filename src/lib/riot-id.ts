@@ -16,15 +16,6 @@ export function parseRiotSlug(
   return { gameName: decoded.slice(0, dash), tagLine: decoded.slice(dash + 1) };
 }
 
-/** Parses what the user typed in the search ("Name#TAG") */
-export function parseRiotIdInput(
-  input: string
-): { gameName: string; tagLine: string } | null {
-  const [gameName, tagLine] = input.trim().split('#');
-  if (!gameName?.trim() || !tagLine?.trim()) return null;
-  return { gameName: gameName.trim(), tagLine: tagLine.trim() };
-}
-
 export function profileHref(
   region: string,
   gameName: string,
