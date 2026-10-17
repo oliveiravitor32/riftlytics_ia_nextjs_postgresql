@@ -88,13 +88,18 @@ export const RIOT_API_CONSTANTS = {
     UTILITY: 'UTILITY',
   } as const,
 
-  // Cache TTL (in milliseconds)
+  // Browser cache (react-query), in milliseconds
   CACHE_TTL: {
-    SUMMONER_PROFILE: 1000 * 60 * 60, // 1 hour
-    SUMMONER_RANK: 1000 * 60 * 30, // 30 minutes
-    RANKING: 1000 * 60 * 5, // 5 minutes (ranking page, client + server)
-    MATCH_LIST: 1000 * 60 * 15, // 15 minutes
+    RANKING: 1000 * 60 * 10, // 10 minutes, same as the server cache
     MATCH_DETAILS: 1000 * 60 * 60 * 24, // 24 hours (matches don't change)
+  } as const,
+
+  // Server cache in Redis, in seconds
+  CACHE_SECONDS: {
+    PROFILE: 60 * 10, // summoner + rank
+    MATCH_IDS: 60 * 10, // a page of match ids
+    PUUID: 60 * 60 * 24 * 30, // never changes
+    REFRESH_LOCK: 60 * 2, // one forced reload per player
   } as const,
 
   // API Response Defaults
