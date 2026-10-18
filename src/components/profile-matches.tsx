@@ -53,19 +53,19 @@ export function ProfileMatches({
   return (
     <>
       {total > 0 && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card className="gap-3 px-4 py-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Card className="gap-2 px-4 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Campeões mais jogados
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {champions.map((c) => (
                 <li key={c.champion} className="flex items-center gap-3">
                   {/* eslint-disable-next-line @next/next/no-img-element -- Data Dragon CDN */}
                   <img
                     src={c.image}
                     alt=""
-                    className="size-8 rounded-md border border-border"
+                    className="size-6 rounded-md border border-border"
                   />
                   <span className="flex-1 truncate text-sm font-medium">
                     {c.champion}
@@ -81,11 +81,11 @@ export function ProfileMatches({
             </ul>
           </Card>
 
-          <Card className="gap-3 px-4 py-4">
+          <Card className="gap-2 px-4 py-3">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Distribuição de rotas
             </h2>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {roles.map(({ role, games }) => {
                 const pct = Math.round((games / total) * 100);
                 return (

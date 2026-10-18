@@ -16,8 +16,6 @@ import { parseRiotSlug } from '@/src/lib/riot-id';
 import { formatTier } from '@/src/lib/rank-labels';
 import type { LeagueEntry } from '@/src/lib/validators';
 import { PlayerAvatar } from '@/src/components/player-avatar';
-import { StatItem } from '@/src/components/stat-item';
-import { WinRateBar } from '@/src/components/win-rate-bar';
 import { PdlChart } from '@/src/components/pdl-chart';
 import { ProfileMatches } from '@/src/components/profile-matches';
 import { Card } from '@/src/components/ui/card';
@@ -43,25 +41,39 @@ function QueueCard({
   title: string;
   entry: LeagueEntry | null;
 }) {
+  const games = entry ? entry.wins + entry.losses : 0;
+  const winRate = games > 0 ? (entry!.wins / games) * 100 : 0;
+
   return (
-    <Card className="gap-3 px-4 py-4">
+    <Card className="gap-2 px-4 py-3">
       <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {title}
       </h2>
       {entry ? (
         <>
-          <p className="text-lg font-semibold">
-            {formatTier(entry.tier, entry.rank)}{' '}
-            <span className="text-sm font-normal text-muted-foreground">
-              · {entry.leaguePoints} PDL
-            </span>
-          </p>
-          <div className="grid grid-cols-3 gap-4">
-            <StatItem label="Partidas" value={entry.wins + entry.losses} />
-            <StatItem label="Vitórias" value={entry.wins} />
-            <StatItem label="Derrotas" value={entry.losses} />
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="font-semibold">
+              {formatTier(entry.tier, entry.rank)}{' '}
+              <span className="text-sm font-normal text-muted-foreground">
+                · {entry.leaguePoints} PDL
+              </span>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              <span className="font-semibold text-foreground">
+                {winRate.toFixed(1)}%
+              </span>{' '}
+              · {entry.wins}V {entry.losses}D
+            </p>
           </div>
-          <WinRateBar wins={entry.wins} losses={entry.losses} />
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="presentation"
+          >
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${winRate}%` }}
+            />
+          </div>
         </>
       ) : (
         <p className="text-sm text-muted-foreground">Sem ranque nesta fila</p>
@@ -115,7 +127,7 @@ export default async function ProfilePage({
   const { profile, pdlHistory, stats } = data;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
+    <div className="mx-auto max-w-5xl space-y-4 px-4 py-8">
       <header className="flex items-center gap-4">
         <PlayerAvatar
           name={riotId}
@@ -133,20 +145,20 @@ export default async function ProfilePage({
         </div>
       </header>
 
-      <section aria-label="Elo por fila" className="grid gap-4 sm:grid-cols-2">
+      <section aria-label="Elo por fila" className="grid gap-3 sm:grid-cols-2">
         <QueueCard title="Solo/Duo" entry={profile.rankInfo} />
         <QueueCard title="Ranqueada Flex" entry={profile.flexRankInfo} />
       </section>
 
       <section aria-labelledby="titulo-pdl">
-        <Card className="gap-3 px-4 py-4">
+        <Card className="gap-2 px-4 py-3">
           <h2
             id="titulo-pdl"
             className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
           >
             Histórico de PDL · Solo/Duo
           </h2>
-          <PdlChart data={pdlHistory} height={160} />
+          <PdlChart data={pdlHistory} height={110} />
         </Card>
       </section>
 

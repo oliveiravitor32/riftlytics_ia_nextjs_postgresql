@@ -79,6 +79,7 @@ it('shows Solo/Duo and Flex ranks from the Riot API', async () => {
     if (entry) {
       expect(card).toHaveTextContent(formatTier(entry.tier, entry.rank));
       expect(card).toHaveTextContent(`${entry.leaguePoints} PDL`);
+      expect(card).toHaveTextContent(`${entry.wins}V ${entry.losses}D`);
     } else {
       expect(card).toHaveTextContent('Sem ranque nesta fila');
     }
