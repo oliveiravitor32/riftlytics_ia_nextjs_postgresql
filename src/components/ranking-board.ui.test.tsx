@@ -165,6 +165,7 @@ it('a second "Atualizar" within 2 minutes is refused with a countdown', async ()
 
 it('a player whose rank fails to load is listed with the error', async () => {
   const ghost: TrackedPlayer = {
+    id: 'fantasma',
     gameName: 'zz-nao-existe-777',
     tagLine: '0000',
     region: 'br1',

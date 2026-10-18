@@ -1,13 +1,15 @@
 /**
  * API Route: POST /api/refresh/[summonerName]
- * Forced reload of a group player: drops the cached profile, reads Riot again
- * and refreshes today's PDL snapshot. At most once per player every 2 minutes
+ * Forced reload of a group player: drops the cached profile, reads Riot again,
+ * refreshes today's PDL snapshot and stores the player's new matches. At most once per player every 2 minutes
  * (for everyone), so the button can't be used to burn the Riot quota.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { refreshProfile } from '@/src/services/profileService';
 import { findTrackedPlayer } from '@/src/services/playerService';
+import { syncNewMatches } from '@/src/services/matchService';
+import { logger } from '@/src/lib/logger';
 import { acquireLock } from '@/src/lib/cache';
 import {
   RateLimitError,
@@ -44,6 +46,18 @@ export async function POST(
 
   try {
     const profile = await refreshProfile(riotId, player.region);
+    try {
+      await syncNewMatches(
+        player.id,
+        RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES
+      );
+    } catch (error) {
+      // The rank is already fresh; the matches come in on the next sync
+      logger.warn('Refresh: match sync failed', {
+        riotId,
+        error: getErrorMessage(error),
+      });
+    }
     const data: RankResponse = {
       name: profile.name,
       rankInfo: profile.rankInfo,

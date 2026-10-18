@@ -8,6 +8,7 @@
 import { NextRequest } from 'next/server';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import {
+  fillHistory,
   getMatch,
   getMatchStats,
   getProfileMatches,
@@ -31,9 +32,13 @@ const detailCalls = () =>
 
 let playerId: string;
 
+/** The player's complete window (newest first), what profile pages list */
 async function storedIds() {
+  const { matchesSyncedUntil } = await prisma.player.findUniqueOrThrow({
+    where: { id: playerId },
+  });
   const rows = await prisma.playerMatch.findMany({
-    where: { playerId },
+    where: { playerId, playedAt: { gte: matchesSyncedUntil ?? new Date() } },
     orderBy: { playedAt: 'desc' },
     select: { matchId: true },
   });
@@ -56,7 +61,7 @@ beforeEach(() => {
 afterEach(() => spy.mockRestore());
 
 describe('syncNewMatches', () => {
-  it('stores only the matches the DB is missing and stops at a known one', async () => {
+  it('stores only the newest matches the DB is missing', async () => {
     const before = await storedIds();
     // Forget the 3 newest: the sync must bring back exactly those
     await prisma.playerMatch.deleteMany({
@@ -64,7 +69,7 @@ describe('syncNewMatches', () => {
     });
 
     spy.mockClear();
-    const added = await syncNewMatches(playerId, 20);
+    const added = await syncNewMatches(playerId, before.length);
 
     expect(added).toBe(3);
     expect(await storedIds()).toEqual(before);
@@ -94,6 +99,27 @@ describe('syncNewMatches', () => {
     });
 
     expect(linked.map((l) => l.playerId).sort()).toEqual(groupPuuids.sort());
+  });
+});
+
+describe('fillHistory', () => {
+  it('continues from before the complete window up to the target', async () => {
+    const before = await storedIds();
+
+    const added = await fillHistory(playerId, before.length + 2);
+
+    expect(added).toBe(2);
+    const after = await storedIds();
+    expect(after).toHaveLength(before.length + 2);
+    expect(after.slice(0, before.length)).toEqual(before);
+  });
+
+  it('does nothing once the target is reached', async () => {
+    const stored = (await storedIds()).length;
+    spy.mockClear();
+
+    expect(await fillHistory(playerId, stored)).toBe(0);
+    expect(riotUrls()).toHaveLength(0);
   });
 });
 
@@ -146,19 +172,15 @@ describe('getProfileMatches', () => {
 
   it('past the stored history it continues from Riot and stores it', async () => {
     const ids = await storedIds();
-    const oldest = ids.at(-1)!;
-    await prisma.playerMatch.delete({
-      where: { playerId_matchId: { playerId, matchId: oldest } },
-    });
 
-    const page = await getProfileMatches(RIOT_ID, ids.length - 1, 1);
+    const page = await getProfileMatches(RIOT_ID, ids.length, 1);
 
-    expect(page.matches.map((m) => m.matchId)).toEqual([oldest]);
-    expect(page.hasMore).toBe(true);
-    // It also stored the next older one, read to know there is another page
     const after = await storedIds();
     expect(after.slice(0, ids.length)).toEqual(ids);
-    expect(after).toHaveLength(ids.length + 1);
+    // The next older match, plus one more read to know there is another page
+    expect(after).toHaveLength(ids.length + 2);
+    expect(page.matches.map((m) => m.matchId)).toEqual([after[ids.length]]);
+    expect(page.hasMore).toBe(true);
   });
 
   it('only group players have a stored history', async () => {

@@ -24,6 +24,9 @@ model Player {
   puuid       String? @unique
   // Hides a player without deleting its history
   active      Boolean @default(true)
+  // Matches are stored without gaps from now back to this moment (older
+  // stored ones came in through a teammate and may have gaps)
+  matchesSyncedUntil DateTime?
 
   pdlSnapshots PDLSnapshot[]
   matches      PlayerMatch[]

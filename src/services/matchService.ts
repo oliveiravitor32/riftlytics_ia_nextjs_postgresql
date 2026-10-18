@@ -8,7 +8,8 @@
 
 import 'server-only';
 import { prisma } from '@/src/lib/db';
-import { NotFoundError } from '@/src/lib/errors';
+import { NotFoundError, RateLimitError } from '@/src/lib/errors';
+import { logger } from '@/src/lib/logger';
 import { leagueApiService } from '@/src/services/leagueApiService';
 import {
   buildGameResumeMatch,
@@ -20,12 +21,8 @@ import type { Prisma } from '@/src/generated/prisma/client';
 import type { Match } from '@/src/lib/validators';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 
-// Riot returns at most 100 ids per call; smaller pages stop sooner at a known id
-const ID_PAGE = 20;
 // Details fetched together; the shared limiter still paces them
 const DETAIL_BATCH = 5;
-
-type GroupPlayer = { id: string; puuid: string };
 
 /** Adds a line for every group member who played in the match */
 async function linkMembers(match: Match): Promise<void> {
@@ -111,64 +108,127 @@ function byRiotId(riotId: string): Prisma.PlayerWhereInput {
   };
 }
 
-async function newMatchIds(player: GroupPlayer, max: number, fresh: boolean) {
-  const unknown: string[] = [];
-  for (let start = 0; start < max; start += ID_PAGE) {
-    const count = Math.min(ID_PAGE, max - start);
-    const ids = await leagueApiService.getMatchList(
-      player.puuid,
-      start,
-      count,
-      { fresh }
-    );
-    const known = new Set(
-      (
-        await prisma.playerMatch.findMany({
-          where: { playerId: player.id, matchId: { in: ids } },
-          select: { matchId: true },
-        })
-      ).map((r) => r.matchId)
-    );
-    const firstKnown = ids.findIndex((id) => known.has(id));
-    unknown.push(...(firstKnown === -1 ? ids : ids.slice(0, firstKnown)));
-    if (firstKnown !== -1 || ids.length < count) break;
+type SyncedPlayer = Awaited<ReturnType<typeof groupPlayer>>;
+
+/**
+ * Stores the ids the player is missing. `ids` is always a complete slice of
+ * the player's Riot history that starts now or right before the
+ * complete window, so the window grows down to the oldest of them.
+ * Returns how many were added.
+ */
+async function storeWindow(player: SyncedPlayer, ids: string[]) {
+  const known = new Set(
+    (
+      await prisma.playerMatch.findMany({
+        where: { playerId: player.id, matchId: { in: ids } },
+        select: { matchId: true },
+      })
+    ).map((r) => r.matchId)
+  );
+  const missing = ids.filter((id) => !known.has(id));
+  await storeAll(missing);
+
+  const oldest = await prisma.playerMatch.findFirst({
+    where: { playerId: player.id, matchId: { in: ids } },
+    orderBy: { playedAt: 'asc' },
+    select: { playedAt: true },
+  });
+  if (
+    oldest &&
+    (!player.matchesSyncedUntil || oldest.playedAt < player.matchesSyncedUntil)
+  ) {
+    await prisma.player.update({
+      where: { id: player.id },
+      data: { matchesSyncedUntil: oldest.playedAt },
+    });
   }
-  return unknown;
+  return missing.length;
 }
 
 /**
- * Stores the player's matches newer than the last stored one (up to `max`
- * ids back), reading Riot's id list fresh. Used by the daily close and
- * "Atualizar". Returns how many were added.
+ * Riot's `endTime` (seconds, inclusive): ids from before the complete window,
+ * leaving out its oldest match
+ */
+const before = (player: SyncedPlayer) =>
+  player.matchesSyncedUntil
+    ? Math.floor(player.matchesSyncedUntil.getTime() / 1000) - 1
+    : undefined;
+
+/**
+ * Stores the player's newest matches (up to `max`) that the DB is missing,
+ * reading Riot's id list fresh. Used by the daily close and "Atualizar".
+ * Returns how many were added.
  */
 export async function syncNewMatches(
   playerId: string,
   max: number = RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES
 ): Promise<number> {
   const player = await groupPlayer({ id: playerId });
-  const ids = await newMatchIds(player, max, true);
-  await storeAll(ids);
-  return ids.length;
+  const ids = await leagueApiService.getMatchList(player.puuid, 0, max, {
+    fresh: true,
+  });
+  return storeWindow(player, ids);
+}
+
+/** Matches in the complete window (from now back to matchesSyncedUntil) */
+function windowWhere(player: SyncedPlayer): Prisma.PlayerMatchWhereInput {
+  return {
+    playerId: player.id,
+    playedAt: { gte: player.matchesSyncedUntil ?? new Date() },
+  };
+}
+
+/**
+ * Completes the history back to `target` matches (first load, or a load
+ * that was cut short), continuing from before the complete window.
+ * Returns how many were added.
+ */
+export async function fillHistory(
+  playerId: string,
+  target: number = RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES
+): Promise<number> {
+  const player = await groupPlayer({ id: playerId });
+  if (!player.matchesSyncedUntil) return syncNewMatches(playerId, target);
+
+  const inWindow = await prisma.playerMatch.count({
+    where: windowWhere(player),
+  });
+  if (inWindow >= target) return 0;
+
+  const ids = await leagueApiService.getMatchList(
+    player.puuid,
+    0,
+    target - inWindow,
+    { fresh: true, endTime: before(player) }
+  );
+  return storeWindow(player, ids);
 }
 
 /**
  * When a profile opens: the newest ids (10-min cache), storing the missing
- * ones, so its page and stats include recent games.
+ * ones, so its page and stats include recent games. If Riot is rate limiting,
+ * the stored history is shown as is.
  */
 export async function syncRecentMatches(riotId: string): Promise<void> {
   const player = await groupPlayer(byRiotId(riotId));
-  await storeAll(
-    await newMatchIds(
+  try {
+    await storeWindow(
       player,
-      RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES,
-      false
-    )
-  );
+      await leagueApiService.getMatchList(
+        player.puuid,
+        0,
+        RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES
+      )
+    );
+  } catch (error) {
+    if (!(error instanceof RateLimitError)) throw error;
+    logger.warn('Recent matches not synced (rate limited)', { riotId });
+  }
 }
 
-function readPage(playerId: string, start: number, take: number) {
+function readPage(player: SyncedPlayer, start: number, take: number) {
   return prisma.playerMatch.findMany({
-    where: { playerId },
+    where: windowWhere(player),
     orderBy: { playedAt: 'desc' },
     skip: start,
     take,
@@ -183,7 +243,7 @@ export type ProfileMatchesPage = {
 
 /**
  * A page of a group player's history. The first page brings in new matches
- * from Riot; later pages come from the DB, and only past the stored history
+ * from Riot; later pages come from the DB, and only past the complete window
  * does it continue from Riot (storing what it reads).
  */
 export async function getProfileMatches(
@@ -192,16 +252,20 @@ export async function getProfileMatches(
   count: number
 ): Promise<ProfileMatchesPage> {
   if (start === 0) await syncRecentMatches(riotId);
-  const player = await groupPlayer(byRiotId(riotId));
+  let player = await groupPlayer(byRiotId(riotId));
 
   // One extra row tells whether there is a next page
-  let rows = await readPage(player.id, start, count + 1);
+  let rows = await readPage(player, start, count + 1);
   if (rows.length <= count) {
-    // The DB holds the newest matches without gaps, so its positions match Riot's
-    await storeAll(
-      await leagueApiService.getMatchList(player.puuid, start, count + 1)
+    const missing = count + 1 - rows.length;
+    await storeWindow(
+      player,
+      await leagueApiService.getMatchList(player.puuid, 0, missing, {
+        endTime: before(player),
+      })
     );
-    rows = await readPage(player.id, start, count + 1);
+    player = await groupPlayer({ id: player.id });
+    rows = await readPage(player, start, count + 1);
   }
 
   return {

@@ -11,7 +11,7 @@ import { NextRequest } from 'next/server';
 import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
-import { GET as runSnapshotCron } from '@/src/app/api/cron/pdl-snapshot/route';
+import { GET as runSnapshotCron } from '@/src/app/api/cron/fechamento/route';
 import {
   brasiliaDate,
   getPdlHistory,
@@ -173,9 +173,9 @@ describe('GET /api/matches/[summonerName]', () => {
   });
 });
 
-describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
+describe('GET /api/cron/fechamento (real Riot + Supabase)', () => {
   const cronRequest = (token?: string) =>
-    new NextRequest('http://localhost/api/cron/pdl-snapshot', {
+    new NextRequest('http://localhost/api/cron/fechamento', {
       headers: token ? { authorization: `Bearer ${token}` } : {},
     });
 
@@ -184,13 +184,24 @@ describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
     expect((await runSnapshotCron(cronRequest('wrong'))).status).toBe(401);
   });
 
-  it('stores today snapshot for every active player (idempotent)', async () => {
+  it('stores today snapshot and the new matches of every active player (idempotent)', async () => {
     const res = await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.failed).toEqual([]);
     expect(body.snapshots).toBeGreaterThan(0);
+    // Every active player has its newest Riot match stored now
+    const players = await prisma.player.findMany({ where: { active: true } });
+    for (const p of players) {
+      const [newest] = await leagueApiService.getMatchList(p.puuid!, 0, 1);
+      if (!newest) continue;
+      expect(
+        await prisma.playerMatch.findUnique({
+          where: { playerId_matchId: { playerId: p.id, matchId: newest } },
+        })
+      ).not.toBeNull();
+    }
 
     // Saving the same day again updates the row instead of adding a point
     // (checked through saveSnapshot directly: no extra Riot calls)

@@ -140,16 +140,18 @@ class LeagueApiService {
   }
 
   /**
-   * Get match list for a player (10-min cache; `fresh` skips it)
+   * Get match list for a player, newest first (10-min cache; `fresh` skips
+   * it). `endTime` (epoch seconds) keeps only matches from before it.
    */
   async getMatchList(
     puuid: string,
     start = 0,
     count: number = RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE,
-    { fresh = false } = {}
+    { fresh = false, endTime }: { fresh?: boolean; endTime?: number } = {}
   ): Promise<MatchIdList> {
-    const url = `${this.regionalBaseUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=${start}&count=${count}`;
-    const key = `partidas:${puuid}:${start}:${count}`;
+    const until = endTime === undefined ? '' : `&endTime=${endTime}`;
+    const url = `${this.regionalBaseUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=${start}&count=${count}${until}`;
+    const key = `partidas:${puuid}:${start}:${count}${endTime === undefined ? '' : `:${endTime}`}`;
 
     logger.debug('Fetching match list', { puuid, start, count });
 

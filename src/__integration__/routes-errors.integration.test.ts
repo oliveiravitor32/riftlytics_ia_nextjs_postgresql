@@ -8,7 +8,7 @@ import { NextRequest } from 'next/server';
 import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
-import { GET as runCron } from '@/src/app/api/cron/pdl-snapshot/route';
+import { GET as runCron } from '@/src/app/api/cron/fechamento/route';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { leagueApiService } from '@/src/services/leagueApiService';
 import { redis, cacheKey } from '@/src/lib/redis';
@@ -72,40 +72,29 @@ describe('region defaults to BR (the group plays there)', () => {
 });
 
 describe('GET /api/matches query parameters', () => {
-  // The page of match ids is cached under its (start, count): checking which
-  // key exists tells what the route asked for, cache hit or miss
-  async function pageKeyExists(start: number, count: number) {
-    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
-    return (
-      (await redis.exists(cacheKey(`partidas:${puuid}:${start}:${count}`))) ===
-      1
-    );
+  async function page(query: string) {
+    const res = await call(getMatches, REAL, 'matches', query);
+    expect(res.status).toBe(200);
+    return (await res.json()) as { count: number; nextStart: number };
   }
 
   it('defaults to the most recent matches (start=0, count=10)', async () => {
-    const res = await call(getMatches, REAL, 'matches');
-
-    expect(res.status).toBe(200);
-    expect(await pageKeyExists(0, 10)).toBe(true);
+    expect(await page('')).toMatchObject({ count: 10, nextStart: 10 });
   });
 
   it('ignores non-numeric start/count instead of sending NaN to Riot', async () => {
-    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
-    await redis.del(cacheKey(`partidas:${puuid}:0:10`));
-
-    const res = await call(getMatches, REAL, 'matches', '&start=abc&count=xyz');
-
-    expect(res.status).toBe(200);
-    expect(await pageKeyExists(0, 10)).toBe(true);
-    expect(await pageKeyExists(NaN, NaN)).toBe(false);
+    expect(await page('&start=abc&count=xyz')).toMatchObject({
+      count: 10,
+      nextStart: 10,
+    });
   });
 
   it('clamps count to the page limit and start to >= 0', async () => {
-    await call(getMatches, REAL, 'matches', '&start=-5&count=999');
-
-    expect(
-      await pageKeyExists(0, RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE)
-    ).toBe(true);
+    const max = RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE;
+    expect(await page('&start=-5&count=999')).toMatchObject({
+      count: max,
+      nextStart: max,
+    });
   });
 });
 
@@ -122,16 +111,28 @@ describe('Riot rate limit → 429 with retryAfter', () => {
     expect((await res.json()).context).toMatchObject({ retryAfter: 1 });
   });
 
-  it('matches route', async () => {
+  it('matches route, past the stored history', async () => {
     riotAnswers429();
-    const res = await call(
-      getMatches,
-      encodeURIComponent('Nao Cacheado#430'),
-      'matches'
-    );
+    const res = await call(getMatches, REAL, 'matches', '&start=5000');
 
     expect(res.status).toBe(429);
     expect((await res.json()).context).toMatchObject({ retryAfter: 1 });
+  });
+
+  it('matches route still serves the stored history on the first page', async () => {
+    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
+    // Forces the first page to ask Riot for new ids
+    await redis.del(
+      cacheKey(
+        `partidas:${puuid}:0:${RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES}`
+      )
+    );
+    riotAnswers429();
+
+    const res = await call(getMatches, REAL, 'matches');
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).count).toBe(10);
   });
 
   it('rank route (bypassing its cache)', async () => {
@@ -151,18 +152,20 @@ describe('Riot rate limit → 429 with retryAfter', () => {
   });
 });
 
-describe('GET /api/cron/pdl-snapshot when Riot is down', () => {
+describe('GET /api/cron/fechamento when Riot is down', () => {
   it('answers 502 if every player failed', async () => {
     riotAnswers429();
     const res = await runCron(
-      new NextRequest('http://localhost/api/cron/pdl-snapshot', {
+      new NextRequest('http://localhost/api/cron/fechamento', {
         headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },
       })
     );
     const body = await res.json();
 
     expect(res.status).toBe(502);
-    expect(body.failed).toHaveLength(body.players);
+    // Both steps failed for every player
+    expect(body.failed).toHaveLength(body.players * 2);
     expect(body.snapshots).toBe(0);
+    expect(body.matches).toBe(0);
   });
 });
