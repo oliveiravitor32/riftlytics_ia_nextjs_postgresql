@@ -111,7 +111,7 @@ function byRiotId(riotId: string): Prisma.PlayerWhereInput {
   };
 }
 
-async function newMatchIds(player: GroupPlayer, max: number) {
+async function newMatchIds(player: GroupPlayer, max: number, fresh: boolean) {
   const unknown: string[] = [];
   for (let start = 0; start < max; start += ID_PAGE) {
     const count = Math.min(ID_PAGE, max - start);
@@ -119,9 +119,7 @@ async function newMatchIds(player: GroupPlayer, max: number) {
       player.puuid,
       start,
       count,
-      {
-        fresh: true,
-      }
+      { fresh }
     );
     const known = new Set(
       (
@@ -140,16 +138,32 @@ async function newMatchIds(player: GroupPlayer, max: number) {
 
 /**
  * Stores the player's matches newer than the last stored one (up to `max`
- * ids back). Returns how many were added.
+ * ids back), reading Riot's id list fresh. Used by the daily close and
+ * "Atualizar". Returns how many were added.
  */
 export async function syncNewMatches(
   playerId: string,
   max: number = RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES
 ): Promise<number> {
   const player = await groupPlayer({ id: playerId });
-  const ids = await newMatchIds(player, max);
+  const ids = await newMatchIds(player, max, true);
   await storeAll(ids);
   return ids.length;
+}
+
+/**
+ * When a profile opens: the newest ids (10-min cache), storing the missing
+ * ones, so its page and stats include recent games.
+ */
+export async function syncRecentMatches(riotId: string): Promise<void> {
+  const player = await groupPlayer(byRiotId(riotId));
+  await storeAll(
+    await newMatchIds(
+      player,
+      RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES,
+      false
+    )
+  );
 }
 
 function readPage(playerId: string, start: number, take: number) {
@@ -177,15 +191,8 @@ export async function getProfileMatches(
   start: number,
   count: number
 ): Promise<ProfileMatchesPage> {
+  if (start === 0) await syncRecentMatches(riotId);
   const player = await groupPlayer(byRiotId(riotId));
-  if (start === 0) {
-    await storeAll(
-      await newMatchIds(
-        player,
-        RIOT_API_CONSTANTS.DEFAULTS.PROFILE_SYNC_MATCHES
-      )
-    );
-  }
 
   // One extra row tells whether there is a next page
   let rows = await readPage(player.id, start, count + 1);

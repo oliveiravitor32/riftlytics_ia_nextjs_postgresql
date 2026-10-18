@@ -1,75 +1,36 @@
 /**
  * ProfileMatches Component
- * Recent matches (paginated) plus champion and role stats computed from
- * the matches loaded so far.
+ * Champion and role stats over every stored match (computed on the server)
+ * plus the paginated match history.
  */
 
 'use client';
 
 import React, { useMemo } from 'react';
+import type { MatchStats } from '@/src/services/matchService';
 import { Loader2 } from 'lucide-react';
 import { useMatchHistoryQuery } from '@/src/queries/useMatchHistoryQuery';
-import GameResumeCard, { type GameResumeMatch } from './game-resume-card';
+import GameResumeCard from './game-resume-card';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 
 const PAGE_SIZE = 10;
 
-type ChampionStats = {
-  champion: string;
-  image: string;
-  games: number;
-  wins: number;
-  kills: number;
-  deaths: number;
-  assists: number;
-};
-
-function summarize(matches: GameResumeMatch[]) {
-  const champions = new Map<string, ChampionStats>();
-  const roles = new Map<string, number>();
-
-  for (const m of matches) {
-    const [k, d, a] = m.kda.split('/').map(Number);
-    const c = champions.get(m.champion) ?? {
-      champion: m.champion,
-      image: m.championImage,
-      games: 0,
-      wins: 0,
-      kills: 0,
-      deaths: 0,
-      assists: 0,
-    };
-    c.games++;
-    c.wins += m.result === 'win' ? 1 : 0;
-    c.kills += k;
-    c.deaths += d;
-    c.assists += a;
-    champions.set(m.champion, c);
-    roles.set(m.role, (roles.get(m.role) ?? 0) + 1);
-  }
-
-  return {
-    champions: [...champions.values()]
-      .sort((a, b) => b.games - a.games)
-      .slice(0, 5),
-    roles: [...roles.entries()].sort((a, b) => b[1] - a[1]),
-  };
-}
-
 export function ProfileMatches({
   riotId,
   region,
+  stats,
 }: {
   riotId: string;
   region: string;
+  stats: MatchStats;
 }): React.ReactElement {
   const query = useMatchHistoryQuery(riotId, region, PAGE_SIZE);
   const matches = useMemo(
     () => query.data?.pages.flatMap((p) => p.matches) ?? [],
     [query.data]
   );
-  const { champions, roles } = useMemo(() => summarize(matches), [matches]);
+  const { champions, roles, total } = stats;
 
   if (query.isLoading) {
     return (
@@ -91,7 +52,7 @@ export function ProfileMatches({
 
   return (
     <>
-      {matches.length > 0 && (
+      {total > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           <Card className="gap-3 px-4 py-4">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -125,8 +86,8 @@ export function ProfileMatches({
               Distribuição de rotas
             </h2>
             <ul className="space-y-2">
-              {roles.map(([role, count]) => {
-                const pct = Math.round((count / matches.length) * 100);
+              {roles.map(({ role, games }) => {
+                const pct = Math.round((games / total) * 100);
                 return (
                   <li key={role} className="space-y-1">
                     <div className="flex justify-between text-sm">
@@ -147,7 +108,7 @@ export function ProfileMatches({
               })}
             </ul>
             <p className="text-xs text-muted-foreground">
-              Com base nas {matches.length} partidas carregadas
+              Com base nas {total} partidas guardadas
             </p>
           </Card>
         </div>

@@ -1,7 +1,7 @@
 /**
  * Profile page: /perfil/[region]/[Name-TAG]
- * Rank for both queues, real PDL history and match history with
- * champion/role stats. Works for any Riot ID, not only tracked players.
+ * Rank for both queues, real PDL history, champion/role stats over every
+ * stored match and the match history. Group players only.
  */
 
 import type { Metadata } from 'next';
@@ -10,6 +10,7 @@ import { AlertTriangle } from 'lucide-react';
 import { getRankedProfile } from '@/src/services/profileService';
 import { findTrackedPlayer } from '@/src/services/playerService';
 import { getPdlHistory } from '@/src/services/snapshotService';
+import { getMatchStats, syncRecentMatches } from '@/src/services/matchService';
 import { NotFoundError, RateLimitError } from '@/src/lib/errors';
 import { parseRiotSlug } from '@/src/lib/riot-id';
 import { formatTier } from '@/src/lib/rank-labels';
@@ -88,7 +89,10 @@ export default async function ProfilePage({
     const { profile } = await getRankedProfile(riotId, region);
     // Read after the profile: a cache miss has just updated today's snapshot
     const pdlHistory = await getPdlHistory(id.gameName, id.tagLine);
-    data = { profile, pdlHistory };
+    // New games first, so the stats include them
+    await syncRecentMatches(riotId);
+    const stats = await getMatchStats(riotId);
+    data = { profile, pdlHistory, stats };
   } catch (error) {
     if (error instanceof NotFoundError) notFound();
     if (error instanceof RateLimitError) {
@@ -108,7 +112,7 @@ export default async function ProfilePage({
     throw error;
   }
 
-  const { profile, pdlHistory } = data;
+  const { profile, pdlHistory, stats } = data;
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
@@ -146,7 +150,7 @@ export default async function ProfilePage({
         </Card>
       </section>
 
-      <ProfileMatches riotId={riotId} region={region} />
+      <ProfileMatches riotId={riotId} region={region} stats={stats} />
     </div>
   );
 }
