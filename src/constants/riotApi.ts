@@ -106,6 +106,8 @@ export const RIOT_API_CONSTANTS = {
   DEFAULTS: {
     MATCHES_PER_PAGE: 20,
     MAX_MATCHES: 100,
+    // New match ids looked up when a profile opens (the daily close goes to MAX_MATCHES)
+    PROFILE_SYNC_MATCHES: 20,
     PDL_SNAPSHOT_TIME: '00:00:00', // UTC time for daily snapshots
   } as const,
 

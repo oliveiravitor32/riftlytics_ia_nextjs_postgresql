@@ -124,7 +124,7 @@ function perkImage(path: string): string {
 }
 
 // Riot's championName is already the Data Dragon id (e.g. "MonkeyKing")
-function championImage(championName: string): string {
+export function championImage(championName: string): string {
   return ddragon(`champion/${championName}.png`);
 }
 
@@ -174,7 +174,7 @@ function queueLabel(queueId: number): string {
   }
 }
 
-function roleLabel(position?: string | null): string {
+export function roleLabel(position?: string | null): string {
   switch (position) {
     case 'TOP':
       return 'Topo';

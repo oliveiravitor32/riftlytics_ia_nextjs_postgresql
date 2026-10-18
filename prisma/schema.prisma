@@ -26,6 +26,7 @@ model Player {
   active      Boolean @default(true)
 
   pdlSnapshots PDLSnapshot[]
+  matches      PlayerMatch[]
   duoAnalysesA DuoAnalysis[] @relation("DuoPlayer1")
   duoAnalysesB DuoAnalysis[] @relation("DuoPlayer2")
 
@@ -57,6 +58,42 @@ model PDLSnapshot {
   @@unique([playerId, queueType, snapshotDate])
   @@index([playerId, queueType, snapshotDate])
   @@map("pdl_snapshots")
+}
+
+// Finished match (never changes): the validated Riot match-v5 payload
+model Match {
+  id           String   @id // Riot match id, e.g. BR1_1234567890
+  queueId      Int
+  gameCreation DateTime
+  gameDuration Int // seconds
+  data         Json
+
+  players PlayerMatch[]
+
+  createdAt DateTime @default(now())
+
+  @@map("matches")
+}
+
+// A group member's line in a match: what profile lists and stats read
+model PlayerMatch {
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  matchId  String
+  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  playedAt     DateTime
+  queueId      Int
+  championName String
+  position     String // TOP | JUNGLE | MIDDLE | BOTTOM | UTILITY | ""
+  win          Boolean
+  kills        Int
+  deaths       Int
+  assists      Int
+
+  @@id([playerId, matchId])
+  @@index([playerId, playedAt(sort: Desc)])
+  @@map("player_matches")
 }
 
 // AI duo compatibility analysis (Phase 3)
