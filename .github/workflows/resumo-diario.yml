@@ -4,8 +4,13 @@ name: Resumo diário
 on:
   schedule:
     - cron: '30 2 * * *'
-  # "Run workflow" button, to resend after a failure
+  # "Run workflow" button: resend after a failure, or send a past day's summary
   workflow_dispatch:
+    inputs:
+      dia:
+        description: 'Dia do resumo (AAAA-MM-DD). Vazio = hoje, com o fechamento do dia antes.'
+        required: false
+        default: ''
 
 concurrency: resumo-diario
 
@@ -23,6 +28,8 @@ jobs:
 
       # Day's final PDL snapshot and new matches, before the summary reads them
       - name: Fechamento do dia
+        # A past day is already closed
+        if: ${{ !inputs.dia }}
         run: |
           curl --fail-with-body --max-time 320 \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
@@ -41,3 +48,4 @@ jobs:
           WHATSAPP_GROUP_ID: ${{ secrets.WHATSAPP_GROUP_ID }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           BOT_SESSION_KEY: ${{ secrets.BOT_SESSION_KEY }}
+          RESUMO_DIA: ${{ inputs.dia }}

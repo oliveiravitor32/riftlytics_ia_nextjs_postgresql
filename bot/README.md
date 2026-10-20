@@ -39,7 +39,9 @@ tabela `bot_session` do Supabase, com a chave `BOT_SESSION_KEY`.
    | `WHATSAPP_GROUP_ID` | o id do grupo listado no passo 2                           |
 
 4. **Teste**: na aba Actions do GitHub, abra `Resumo diário` → **Run
-   workflow**.
+   workflow**. O campo **Dia do resumo** é opcional: vazio manda o resumo de
+   hoje (com o fechamento do dia antes); com uma data (`AAAA-MM-DD`) manda o
+   resumo daquele dia, útil para testar ou reenviar.
 
 ## Manutenção
 
