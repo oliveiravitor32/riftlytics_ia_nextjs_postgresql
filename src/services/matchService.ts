@@ -164,7 +164,9 @@ export async function syncNewMatches(
   max: number = RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES
 ): Promise<number> {
   const player = await groupPlayer({ id: playerId });
-  const ids = await leagueApiService.getMatchList(player.puuid, 0, max, {
+  // Riot answers 400 above 100 ids per call
+  const count = Math.min(max, RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES);
+  const ids = await leagueApiService.getMatchList(player.puuid, 0, count, {
     fresh: true,
   });
   return storeWindow(player, ids);

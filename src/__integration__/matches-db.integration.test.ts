@@ -15,6 +15,7 @@ import {
   syncNewMatches,
 } from '@/src/services/matchService';
 import { prisma } from '@/src/lib/db';
+import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { leagueApiService } from '@/src/services/leagueApiService';
 
 const PLAYER = { gameName: 'Neutro7', tagLine: 'BR1' };
@@ -72,6 +73,13 @@ describe('syncNewMatches', () => {
     const added = await syncNewMatches(playerId, before.length);
 
     expect(added).toBe(3);
+    // Also when the window is longer than Riot's 100 ids per call
+    expect(
+      await syncNewMatches(
+        playerId,
+        RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES + 50
+      )
+    ).toBeGreaterThanOrEqual(0);
     expect(await storedIds()).toEqual(before);
   });
 
