@@ -165,9 +165,11 @@
 Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
 - **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
-- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, calendar day in **Brasília**); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by the daily close `/api/cron/fechamento` at 23h Brasília (Vercel Cron, `CRON_SECRET`).
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, calendar day in **Brasília**); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by the daily close `/api/cron/fechamento` at 23:30 Brasília (GitHub Actions workflow `Resumo diário`, `CRON_SECRET`).
 - **Match** (`matches`): one row per finished match (`id` = Riot match id), with the validated match-v5 payload in `data` (JSON). Fetched from Riot once, read from the DB forever after.
 - **PlayerMatch** (`player_matches`): a group member's line in a match (`playedAt`, `queueId`, `championName`, `position`, `win`, K/D/A); every group member in a stored match gets one. Profile lists and stats read from here.
+- **LevelSnapshot** (`level_snapshots`): summoner level per player and Brasília day, saved with the PDL snapshot; feeds the daily summary's countdown to level 30.
+- **BotSession** (`bot_session`): WhatsApp bot session (Baileys auth state), one encrypted row per key; only `bot/` reads it.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
 ### Database Approach
@@ -214,8 +216,11 @@ GET    /api/profile/[summonerName]    - Summoner + Solo/Duo and Flex rank + PDL 
 GET    /api/rank/[summonerName]       - Rank only (ranking page); same 10-min cache as profile
 GET    /api/matches/[summonerName]    - Paginated match history of a group player, from the DB (?start, ?count)
 POST   /api/refresh/[summonerName]    - Forced reload of a group player: rank, today's PDL and new matches (1 per player / 2 min, 429 + Retry-After)
-GET    /api/cron/fechamento           - Daily close: final PDL snapshot + new matches (Vercel Cron, Bearer CRON_SECRET)
+GET    /api/cron/fechamento           - Daily close: final PDL snapshot + new matches (GitHub Actions, Bearer CRON_SECRET)
+GET    /api/resumo                    - Daily WhatsApp summary text, ?dia=AAAA-MM-DD (Bearer CRON_SECRET; null on a quiet day)
 ```
+
+**WhatsApp bot** (`bot/`, its own package): the `Resumo diário` workflow runs at 23:30 Brasília, calls the daily close, then `bot/send.mjs` fetches `/api/resumo` and sends it to the group (Baileys, unofficial; dedicated number). Setup and secrets: `bot/README.md`. The message is built by `src/lib/daily-summary.ts` (rank changes, highlights, countdown to level 30) from `src/services/dailySummaryService.ts`.
 
 All Riot calls go through `leagueApiService` and the Redis-backed limiter in `src/lib/riot-limiter.ts` (`@upstash/ratelimit`, 90% of 20/1s and 100/2min). Its counters live in Redis, so every server instance shares one Riot quota; a Riot 429 pauses all of them for `Retry-After`. Region defaults to `br1` (`RIOT_API_CONSTANTS.DEFAULT_REGION`).
 
