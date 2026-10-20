@@ -101,11 +101,7 @@ describe('Riot API endpoints (service)', () => {
     const match = await leagueApiService.getMatchDetails(ids[0]);
     expect(match.metadata.matchId).toBe(ids[0]);
     expect(match.metadata.participants).toContain(puuid);
-
-    // Finished matches are cached forever
-    fetchSpy.mockClear();
-    await leagueApiService.getMatchDetails(ids[0]);
-    expect(riotCalls()).toHaveLength(0);
+    // Storing it (once) is matchService's job: see matches-db.integration.test.ts
   });
 });
 
