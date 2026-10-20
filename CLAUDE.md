@@ -243,13 +243,26 @@ GET    /api/cache/invalidate          - Admin endpoint
 
 ### Testing Strategy
 
-TDD, with tests that run the **real application**: nothing of ours is mocked, so a wrong change in the app makes a test fail. Minimum coverage: **90%** (statements, branches, functions, lines), measured over all suites together.
+TDD, with tests that run the **real application**: nothing of ours is mocked (routes, services, Prisma, Redis, pages), so a wrong change in the app makes a test fail. Minimum coverage: **90%** (statements, branches, functions, lines), measured over all suites together.
 
 | Suite       | Files                   | What it runs                                                                                            | Where             |
 | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
 | unit        | `*.test.ts(x)`          | Pure logic (limiter, rank order, Riot ID, labels, errors, logger)                                       | local + GitHub CI |
-| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase                                      | local only        |
-| ui          | `*.ui.test.tsx`         | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only        |
+| integration | `*.integration.test.ts` | Routes, services, cron and DB (real Supabase + Upstash, mocked Riot)                                    | local             |
+| ui          | `*.ui.test.tsx`         | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local             |
+
+- **Riot answers are mocked** (`jest/riot-mock`): the Riot API is outside our control, so integration and ui runs answer `*.riotgames.com` from a fake, deterministic world built on the documented response interfaces in `src/types/riot-api.ts` (invented players `Alfa#TST`, `Bravo#TST`, `Charlie Delta#TST2`, `Echo#TST`, plus `Forasteiro#FORA` who exists on Riot but isn't in the group). Same paths, query params (`start`, `count` ≤ 100, `endTime`), status codes and JSON shapes as Riot. A full run takes about 1.5 min and spends no Riot quota.
+- `npm run test:riot`: contract check against the **real** Riot API (`*.live.test.ts`, ~6 requests): the real answers still match our interfaces and Zod schemas. It already caught one: `league-v4` doesn't send the documented `leagueId`.
+- **Test database**: every run starts with a clean Postgres schema `test` in the same Supabase database (`jest/global-setup.ts`: migrate, empty, seed the mock group). Production data (`public`) is never touched. Files run in alphabetical order (`jest/sequencer.js`).
+- Also faked: Riot 429/5xx/timeouts (tests replace `fetch` themselves) and the clock where needed.
+- Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
+- Integration and ui tests need `.env.local` (`DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`; `RIOT_API_KEY` only for `test:riot`) and use their own Redis key prefix, deleted at the end of the run.
+- GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
+
+----------- | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
+| unit | `*.test.ts(x)` | Pure logic (limiter, rank order, Riot ID, labels, errors, logger) | local + GitHub CI |
+| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase | local only |
+| ui | `*.ui.test.tsx` | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only |
 
 - Only what is outside our control and can't be triggered safely is faked: Riot's HTTP answer for 429/5xx/timeouts, and the clock in the token-bucket math.
 - Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
