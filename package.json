@@ -18,10 +18,11 @@
     "test:integration": "jest --config jest.integration.config.ts --runInBand",
     "test:ui": "jest --config jest.all.config.ts --selectProjects ui --runInBand",
     "test:all": "jest --config jest.all.config.ts --runInBand --coverage",
+    "test:riot": "jest --config jest.riot.config.ts --runInBand",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
-    "pdl:snapshot": "node scripts/pdl-snapshot.mjs",
+    "fechamento": "node scripts/fechamento.mjs",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
     "prepare": "husky install"

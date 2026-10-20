@@ -1,10 +1,11 @@
 /**
  * API Route: GET /api/matches/[summonerName]
- * Fetch paginated match history cards for a profile
+ * Paginated match history cards of a group player, read from the DB
+ * (the first page also brings in new matches from Riot)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { leagueApiService } from '@/src/services/leagueApiService';
+import { getProfileMatches } from '@/src/services/matchService';
 import { logger } from '@/src/lib/logger';
 import {
   isAppError,
@@ -37,22 +38,18 @@ export async function GET(
   );
 
   try {
-    // Only the PUUID is needed (cached forever), not the full summoner
     const riotId = decodeURIComponent(summonerName);
-    const puuid = await leagueApiService.getPuuidByRiotId(riotId);
-
-    const matches = await leagueApiService.getMatchHistoryByPuuid(
-      puuid,
+    const { matches, hasMore } = await getProfileMatches(
+      riotId,
       start,
-      requestedCount,
-      riotId
+      requestedCount
     );
 
     const response = {
       matches,
       count: matches.length,
       nextStart: start + matches.length,
-      hasMore: matches.length === requestedCount,
+      hasMore,
     };
 
     logger.info('Matches API: Match history fetched successfully', {
@@ -62,11 +59,7 @@ export async function GET(
       count: matches.length,
     });
 
-    return NextResponse.json(response, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-      },
-    });
+    return NextResponse.json(response);
   } catch (error) {
     const message = getErrorMessage(error);
     const statusCode = getErrorStatusCode(error);

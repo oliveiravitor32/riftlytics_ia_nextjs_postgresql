@@ -6,7 +6,7 @@
 
 import 'server-only';
 import { Ratelimit } from '@upstash/ratelimit';
-import { redis, cacheKey } from './redis';
+import { redis } from './redis';
 import { RateLimitError } from './errors';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 
@@ -29,7 +29,10 @@ export function createRiotLimiter({
   perSecond,
   perTwoMinutes,
 }: LimiterConfig) {
-  const prefix = cacheKey(`riot-limit:${name}`);
+  // Not under CACHE_PREFIX: production, the dev server and test runs all use
+  // the same Riot key, so they must count against one quota. Only tests that
+  // fake Riot errors set RIOT_LIMIT_PREFIX to stay out of it.
+  const prefix = `${process.env.RIOT_LIMIT_PREFIX ?? 'riftlytics:'}riot-limit:${name}`;
   const windows = [
     { limit: perSecond, window: '1 s' as const, timeoutMs: 30_000 },
     { limit: perTwoMinutes, window: '120 s' as const, timeoutMs: 125_000 },
@@ -72,4 +75,12 @@ export function createRiotLimiter({
   };
 }
 
-export const riotLimiter = createRiotLimiter({ name: 'app', ...RIOT_LIMITS });
+// Tests answering Riot with mocks (jest/riot-mock) spend no real quota and raise
+// it with RIOT_LIMIT_SCALE (jest/riot-env.ts); production never sets it
+const scale = Number(process.env.RIOT_LIMIT_SCALE ?? 1);
+
+export const riotLimiter = createRiotLimiter({
+  name: 'app',
+  perSecond: RIOT_LIMITS.perSecond * scale,
+  perTwoMinutes: RIOT_LIMITS.perTwoMinutes * scale,
+});

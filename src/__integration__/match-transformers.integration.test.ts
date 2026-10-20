@@ -8,7 +8,7 @@ import { leagueApiService } from '@/src/services/leagueApiService';
 import { buildGameResumeMatch } from '@/src/lib/match-transformers';
 import type { Match, Participant } from '@/src/lib/validators';
 
-const RIOT_ID = 'FlyerCloud#br1';
+const RIOT_ID = 'Alfa#TST';
 let puuid: string;
 let match: Match;
 let me: Participant;

@@ -25,7 +25,7 @@ import {
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { buildGameResumeMatch } from '@/src/lib/match-transformers';
 import { riotLimiter } from '@/src/lib/riot-limiter';
-import { cached } from '@/src/lib/cache';
+import { cached, invalidate } from '@/src/lib/cache';
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 
 interface RetryConfig {
@@ -38,9 +38,6 @@ const RANKED_QUEUES: string[] = [
   RIOT_API_CONSTANTS.QUEUE_TYPES.SOLO_DUO,
   RIOT_API_CONSTANTS.QUEUE_TYPES.FLEX_SR,
 ];
-
-// Finished matches never change: cached forever in memory (DB in the next step)
-const matchCache = new Map<string, Match>();
 
 /**
  * League API Service - Singleton
@@ -143,20 +140,25 @@ class LeagueApiService {
   }
 
   /**
-   * Get match list for a player
+   * Get match list for a player, newest first (10-min cache; `fresh` skips
+   * it). `endTime` (epoch seconds) keeps only matches from before it.
    */
   async getMatchList(
     puuid: string,
     start = 0,
-    count: number = RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE
+    count: number = RIOT_API_CONSTANTS.DEFAULTS.MATCHES_PER_PAGE,
+    { fresh = false, endTime }: { fresh?: boolean; endTime?: number } = {}
   ): Promise<MatchIdList> {
-    const url = `${this.regionalBaseUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=${start}&count=${count}`;
+    const until = endTime === undefined ? '' : `&endTime=${endTime}`;
+    const url = `${this.regionalBaseUrl}/lol/match/v5/matches/by-puuid/${puuid}/ids?start=${start}&count=${count}${until}`;
+    const key = `partidas:${puuid}:${start}:${count}${endTime === undefined ? '' : `:${endTime}`}`;
 
     logger.debug('Fetching match list', { puuid, start, count });
 
     try {
+      if (fresh) await invalidate(key);
       const { value } = await cached(
-        `partidas:${puuid}:${start}:${count}`,
+        key,
         RIOT_API_CONSTANTS.CACHE_SECONDS.MATCH_IDS,
         async () =>
           MatchIdListSchema.parse(await this.makeRequest<unknown>(url))
@@ -168,12 +170,9 @@ class LeagueApiService {
   }
 
   /**
-   * Get match details
+   * Match details straight from Riot (matchService stores them in the DB)
    */
   async getMatchDetails(matchId: string): Promise<Match> {
-    const cached = matchCache.get(matchId);
-    if (cached) return cached;
-
     const url = `${this.regionalBaseUrl}/lol/match/v5/matches/${matchId}`;
 
     logger.debug('Fetching match details', { matchId });
@@ -181,7 +180,6 @@ class LeagueApiService {
     try {
       const response = await this.makeRequest<unknown>(url);
       const validated = MatchSchema.parse(response);
-      matchCache.set(matchId, validated);
 
       logger.info('Match details fetched', { matchId });
       return validated;

@@ -6,6 +6,7 @@ import 'server-only';
 import { prisma } from '@/src/lib/db';
 
 export type TrackedPlayer = {
+  id: string;
   gameName: string;
   tagLine: string;
   region: string;
@@ -18,6 +19,7 @@ export async function getActivePlayers(): Promise<TrackedPlayer[]> {
     where: { active: true },
     orderBy: { createdAt: 'asc' },
     select: {
+      id: true,
       gameName: true,
       tagLine: true,
       region: true,
@@ -38,6 +40,7 @@ export async function findTrackedPlayer(
       tagLine: { equals: tagLine, mode: 'insensitive' },
     },
     select: {
+      id: true,
       gameName: true,
       tagLine: true,
       region: true,

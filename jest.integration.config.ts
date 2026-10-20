@@ -8,7 +8,8 @@ import { integrationProject } from './jest/projects';
 const integrationConfig = async (): Promise<Config> => ({
   ...(await integrationProject()),
   // One Redis namespace per run, deleted at the end
-  globalSetup: '<rootDir>/jest/redis-global-setup.ts',
+  globalSetup: '<rootDir>/jest/global-setup.ts',
+  testSequencer: '<rootDir>/jest/sequencer.js',
   globalTeardown: '<rootDir>/jest/redis-global-teardown.ts',
 });
 

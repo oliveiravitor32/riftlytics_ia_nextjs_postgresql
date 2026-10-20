@@ -11,7 +11,7 @@ import { NextRequest } from 'next/server';
 import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
-import { GET as runSnapshotCron } from '@/src/app/api/cron/pdl-snapshot/route';
+import { GET as runSnapshotCron } from '@/src/app/api/cron/fechamento/route';
 import {
   brasiliaDate,
   getPdlHistory,
@@ -22,7 +22,7 @@ import { leagueApiService } from '@/src/services/leagueApiService';
 import { invalidateProfile } from '@/src/services/profileService';
 
 // A real, ranked player from the group
-const player = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
+const player = { gameName: 'Alfa', tagLine: 'TST', region: 'br1' };
 const riotId = `${player.gameName}#${player.tagLine}`;
 const region = player.region;
 const encoded = encodeURIComponent(riotId);
@@ -101,11 +101,7 @@ describe('Riot API endpoints (service)', () => {
     const match = await leagueApiService.getMatchDetails(ids[0]);
     expect(match.metadata.matchId).toBe(ids[0]);
     expect(match.metadata.participants).toContain(puuid);
-
-    // Finished matches are cached forever
-    fetchSpy.mockClear();
-    await leagueApiService.getMatchDetails(ids[0]);
-    expect(riotCalls()).toHaveLength(0);
+    // Storing it (once) is matchService's job: see matches-db.integration.test.ts
   });
 });
 
@@ -173,9 +169,9 @@ describe('GET /api/matches/[summonerName]', () => {
   });
 });
 
-describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
+describe('GET /api/cron/fechamento (real Riot + Supabase)', () => {
   const cronRequest = (token?: string) =>
-    new NextRequest('http://localhost/api/cron/pdl-snapshot', {
+    new NextRequest('http://localhost/api/cron/fechamento', {
       headers: token ? { authorization: `Bearer ${token}` } : {},
     });
 
@@ -184,13 +180,35 @@ describe('GET /api/cron/pdl-snapshot (real Riot + Supabase)', () => {
     expect((await runSnapshotCron(cronRequest('wrong'))).status).toBe(401);
   });
 
-  it('stores today snapshot for every active player (idempotent)', async () => {
-    const res = await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
+  it('stores today snapshot and the new matches of every active player (idempotent)', async () => {
+    // One active player is enough to check the close (each one loads up to
+    // 100 matches); the test schema is reset every run
+    await prisma.player.updateMany({
+      where: { NOT: { gameName: player.gameName, tagLine: player.tagLine } },
+      data: { active: false },
+    });
+    const res = await runSnapshotCron(
+      cronRequest(process.env.CRON_SECRET)
+    ).finally(() => prisma.player.updateMany({ data: { active: true } }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.failed).toEqual([]);
     expect(body.snapshots).toBeGreaterThan(0);
+    expect(body.players).toBe(1);
+    // Its newest Riot match is stored now
+    const players = await prisma.player.findMany({
+      where: { gameName: player.gameName, tagLine: player.tagLine },
+    });
+    for (const p of players) {
+      const [newest] = await leagueApiService.getMatchList(p.puuid!, 0, 1);
+      if (!newest) continue;
+      expect(
+        await prisma.playerMatch.findUnique({
+          where: { playerId_matchId: { playerId: p.id, matchId: newest } },
+        })
+      ).not.toBeNull();
+    }
 
     // Saving the same day again updates the row instead of adding a point
     // (checked through saveSnapshot directly: no extra Riot calls)

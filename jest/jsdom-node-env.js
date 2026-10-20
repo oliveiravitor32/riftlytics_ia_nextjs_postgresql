@@ -36,6 +36,11 @@ class JsdomWithNodeGlobals extends JsdomEnvironment {
     for (const name of NODE_GLOBALS) {
       if (globalThis[name] !== undefined) this.global[name] = globalThis[name];
     }
+    // jsdom's crypto (read-only) has no randomUUID; Prisma needs it for transactions
+    Object.defineProperty(this.global, 'crypto', {
+      value: globalThis.crypto,
+      configurable: true,
+    });
     // Real network fetch, kept for the API bridge (see jest/api-bridge.ts)
     this.global.__nodeFetch = globalThis.fetch;
   }

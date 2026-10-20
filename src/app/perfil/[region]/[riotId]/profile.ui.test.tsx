@@ -10,6 +10,7 @@ import ProfileNotFound from './not-found';
 import { ProfileMatches } from '@/src/components/profile-matches';
 import { leagueApiService } from '@/src/services/leagueApiService';
 import { getPdlHistory } from '@/src/services/snapshotService';
+import { getMatchStats } from '@/src/services/matchService';
 import { formatTier } from '@/src/lib/rank-labels';
 import { toRiotSlug } from '@/src/lib/riot-id';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
@@ -18,7 +19,7 @@ import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
 import { invalidateProfile } from '@/src/services/profileService';
 
-const PLAYER = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
+const PLAYER = { gameName: 'Alfa', tagLine: 'TST', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
 const params = (region: string, slug: string) => ({
   params: Promise.resolve({ region, riotId: slug }),
@@ -78,6 +79,7 @@ it('shows Solo/Duo and Flex ranks from the Riot API', async () => {
     if (entry) {
       expect(card).toHaveTextContent(formatTier(entry.tier, entry.rank));
       expect(card).toHaveTextContent(`${entry.leaguePoints} PDL`);
+      expect(card).toHaveTextContent(`${entry.wins}V ${entry.losses}D`);
     } else {
       expect(card).toHaveTextContent('Sem ranque nesta fila');
     }
@@ -97,7 +99,7 @@ it('plots the stored PDL history (or explains it needs more days)', async () => 
   }
 });
 
-it('lists the 10 most recent matches with champion and role stats', async () => {
+it('lists the 10 most recent matches', async () => {
   const { matches } = (await (
     await fetch(
       `/api/matches/${encodeURIComponent(RIOT_ID)}?region=br1&start=0&count=10`
@@ -106,21 +108,25 @@ it('lists the 10 most recent matches with champion and role stats', async () => 
   await renderProfile();
 
   expect(matchItems()).toHaveLength(matches.length);
+});
+
+it('champion and role stats cover every stored match, not just the page', async () => {
+  await renderProfile();
+  const stats = await getMatchStats(RIOT_ID);
+
   expect(
-    screen.getByText(`Com base nas ${matches.length} partidas carregadas`)
+    screen.getByText(`Com base nas ${stats.total} partidas guardadas`)
   ).toBeInTheDocument();
 
-  // The most played champion is listed first, with its real game count
-  const counts = new Map<string, number>();
-  for (const m of matches)
-    counts.set(m.champion, (counts.get(m.champion) ?? 0) + 1);
-  const top = Math.max(...counts.values());
+  // The most played champion is listed first, with its stored game count
+  const [top] = stats.champions;
   const champions = within(
     screen.getByRole('heading', { name: 'Campeões mais jogados' })
       .parentElement as HTMLElement
   ).getAllByRole('listitem');
+  expect(champions[0]).toHaveTextContent(top.champion);
   expect(champions[0]).toHaveTextContent(
-    `${top} ${top === 1 ? 'partida' : 'partidas'}`
+    `${top.games} ${top.games === 1 ? 'partida' : 'partidas'}`
   );
 
   // Role shares add up to ~100%
@@ -157,14 +163,14 @@ describe('not found', () => {
       NOT_FOUND
     );
     await expect(
-      ProfilePage(params('xx9', toRiotSlug('FlyerCloud', 'br1')))
+      ProfilePage(params('xx9', toRiotSlug('Alfa', 'br1')))
     ).rejects.toMatchObject(NOT_FOUND);
   });
 
   it('rejects a real Riot ID that is not in the group', async () => {
-    // Played with FlyerCloud; exists on Riot but isn't a tracked player
+    // Exists on Riot but isn't a tracked player
     await expect(
-      ProfilePage(params('br1', toRiotSlug('Arthurmtd', 'br1')))
+      ProfilePage(params('br1', toRiotSlug('Forasteiro', 'FORA')))
     ).rejects.toMatchObject(NOT_FOUND);
   });
 
@@ -201,7 +207,13 @@ it('the page title is the Riot ID', async () => {
 });
 
 it('match list explains when the matches cannot be loaded', async () => {
-  renderApp(<ProfileMatches riotId="zz-nao-existe-321#0000" region="br1" />);
+  renderApp(
+    <ProfileMatches
+      riotId="zz-nao-existe-321#0000"
+      region="br1"
+      stats={{ total: 0, champions: [], roles: [] }}
+    />
+  );
 
   expect(
     await screen.findByText(

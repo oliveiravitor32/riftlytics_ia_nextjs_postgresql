@@ -145,10 +145,9 @@
 
 - **Problem**: League API only keeps last 20 matches; doesn't track historical rank/LP changes
 - **Solution**:
-  - Store only PDL snapshots (rank, LP, win rate) daily via background jobs
-  - Don't store full match data (keep API data fresh)
-  - Query full match history on-demand from API
-  - Use Redis to cache current profiles
+  - Store daily PDL snapshots (rank, LP, win rate)
+  - Store the group's finished matches in the DB (they never change; Riot keeps ~2 years)
+  - Use Redis to cache current profiles and match-id pages
 
 ### 5. **AI Analysis Cost & Latency**
 
@@ -166,7 +165,9 @@
 Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
 - **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
-- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, calendar day in **Brasília**); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by `/api/cron/pdl-snapshot` at 23:55 Brasília (Vercel Cron, `CRON_SECRET`).
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, calendar day in **Brasília**); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by the daily close `/api/cron/fechamento` at 23h Brasília (Vercel Cron, `CRON_SECRET`).
+- **Match** (`matches`): one row per finished match (`id` = Riot match id), with the validated match-v5 payload in `data` (JSON). Fetched from Riot once, read from the DB forever after.
+- **PlayerMatch** (`player_matches`): a group member's line in a match (`playedAt`, `queueId`, `championName`, `position`, `win`, K/D/A); every group member in a stored match gets one. Profile lists and stats read from here.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
 ### Database Approach
@@ -174,7 +175,7 @@ Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 - **Prisma 7 specifics**: the generator is `prisma-client` with output in `src/generated/prisma` (gitignored, created by `postinstall`). Connection URLs are not in the schema: migrations use `DIRECT_URL` via `prisma.config.ts`; runtime uses `DATABASE_URL` (Supabase transaction pooler) via the `@prisma/adapter-pg` driver in `src/lib/db.ts`.
 - **Server only**: `src/lib/db.ts` and `src/services/playerService.ts` import `server-only`; client components receive data as props.
 - **Cache (Upstash Redis)**: `src/lib/cache.ts` (`cached`, `invalidate`, `acquireLock`), keys prefixed by `CACHE_PREFIX` (`riftlytics:` in prod, `test:<id>:` per test file). TTLs in `RIOT_API_CONSTANTS.CACHE_SECONDS`: profile + rank 10 min, match-id pages 10 min, PUUID 30 days, forced-reload lock 2 min per player.
-- **Match data**: fetched on demand from the Riot API (match details cached in memory for now; moving to the DB next).
+- **Match data** (`src/services/matchService.ts`): stored in the DB. New matches come in when a profile opens (its 20 newest ids, 10-min cache), on "Atualizar" and in the daily close (up to 100 back, stopping at the first stored one). Profile pages after the first and the champion/role stats read the DB; only past the stored history does it continue from Riot. Matches are stored oldest first so an interrupted run never leaves a gap. First load: `npm run fechamento -- http://localhost:<port>` against the local dev server (~15 min).
 - **Profiles**: only tracked players have a profile page (`/perfil/[region]/[Name-TAG]`); searching other players is out of scope for now.
 - **RLS** is enabled on Supabase tables; Prisma connects as the owner and is not affected.
 
@@ -211,9 +212,9 @@ OPENAI_API_KEY=                   # For Phase 3 (AI analysis)
 ```
 GET    /api/profile/[summonerName]    - Summoner + Solo/Duo and Flex rank + PDL history (home cards)
 GET    /api/rank/[summonerName]       - Rank only (ranking page); same 10-min cache as profile
-GET    /api/matches/[summonerName]    - Paginated match history (?start, ?count)
-POST   /api/refresh/[summonerName]    - Forced reload of a group player (1 per player / 2 min, 429 + Retry-After)
-GET    /api/cron/pdl-snapshot         - Daily final PDL snapshot (Vercel Cron, Bearer CRON_SECRET)
+GET    /api/matches/[summonerName]    - Paginated match history of a group player, from the DB (?start, ?count)
+POST   /api/refresh/[summonerName]    - Forced reload of a group player: rank, today's PDL and new matches (1 per player / 2 min, 429 + Retry-After)
+GET    /api/cron/fechamento           - Daily close: final PDL snapshot + new matches (Vercel Cron, Bearer CRON_SECRET)
 ```
 
 All Riot calls go through `leagueApiService` and the Redis-backed limiter in `src/lib/riot-limiter.ts` (`@upstash/ratelimit`, 90% of 20/1s and 100/2min). Its counters live in Redis, so every server instance shares one Riot quota; a Riot 429 pauses all of them for `Retry-After`. Region defaults to `br1` (`RIOT_API_CONSTANTS.DEFAULT_REGION`).
@@ -227,6 +228,7 @@ npm run test:ui             # real components/pages through the real routes (loc
 npm run test:all            # every suite + the 90% coverage gate (local)
 npm run prisma:migrate      # create + apply a migration after editing the schema
 npm run prisma:seed         # seed initial players
+npm run fechamento          # run the daily close on a server (first run loads 100 matches per player)
 npm run prisma:studio       # browse/edit data (e.g. avatarUrl)
 ```
 
@@ -241,13 +243,26 @@ GET    /api/cache/invalidate          - Admin endpoint
 
 ### Testing Strategy
 
-TDD, with tests that run the **real application**: nothing of ours is mocked, so a wrong change in the app makes a test fail. Minimum coverage: **90%** (statements, branches, functions, lines), measured over all suites together.
+TDD, with tests that run the **real application**: nothing of ours is mocked (routes, services, Prisma, Redis, pages), so a wrong change in the app makes a test fail. Minimum coverage: **90%** (statements, branches, functions, lines), measured over all suites together.
 
 | Suite       | Files                   | What it runs                                                                                            | Where             |
 | ----------- | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
 | unit        | `*.test.ts(x)`          | Pure logic (limiter, rank order, Riot ID, labels, errors, logger)                                       | local + GitHub CI |
-| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase                                      | local only        |
-| ui          | `*.ui.test.tsx`         | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only        |
+| integration | `*.integration.test.ts` | Routes, services, cron and DB (real Supabase + Upstash, mocked Riot)                                    | local             |
+| ui          | `*.ui.test.tsx`         | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local             |
+
+- **Riot answers are mocked** (`jest/riot-mock`): the Riot API is outside our control, so integration and ui runs answer `*.riotgames.com` from a fake, deterministic world built on the documented response interfaces in `src/types/riot-api.ts` (invented players `Alfa#TST`, `Bravo#TST`, `Charlie Delta#TST2`, `Echo#TST`, plus `Forasteiro#FORA` who exists on Riot but isn't in the group). Same paths, query params (`start`, `count` ≤ 100, `endTime`), status codes and JSON shapes as Riot. A full run takes about 1.5 min and spends no Riot quota.
+- `npm run test:riot`: contract check against the **real** Riot API (`*.live.test.ts`, ~6 requests): the real answers still match our interfaces and Zod schemas. It already caught one: `league-v4` doesn't send the documented `leagueId`.
+- **Test database**: every run starts with a clean Postgres schema `test` in the same Supabase database (`jest/global-setup.ts`: migrate, empty, seed the mock group). Production data (`public`) is never touched. Files run in alphabetical order (`jest/sequencer.js`).
+- Also faked: Riot 429/5xx/timeouts (tests replace `fetch` themselves) and the clock where needed.
+- Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
+- Integration and ui tests need `.env.local` (`DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`; `RIOT_API_KEY` only for `test:riot`) and use their own Redis key prefix, deleted at the end of the run.
+- GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
+
+----------- | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
+| unit | `*.test.ts(x)` | Pure logic (limiter, rank order, Riot ID, labels, errors, logger) | local + GitHub CI |
+| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase | local only |
+| ui | `*.ui.test.tsx` | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only |
 
 - Only what is outside our control and can't be triggered safely is faked: Riot's HTTP answer for 429/5xx/timeouts, and the clock in the token-bucket math.
 - Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
@@ -283,7 +298,6 @@ TDD, with tests that run the **real application**: nothing of ours is mocked, so
 - [ ] Validate all Riot API responses with Zod
 - [ ] Implement rate limiting on API routes (use Next.js middleware)
 - [ ] Track League API rate limit headers
-- [ ] Don't store full match data (reduces data exposure)
 - [ ] Log API errors (not sensitive data)
 - [ ] Monitor Supabase connection limits
 

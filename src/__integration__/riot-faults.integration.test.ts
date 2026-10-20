@@ -17,8 +17,10 @@ let NotFoundError: typeof ErrorsModule.NotFoundError;
 let RateLimitError: typeof ErrorsModule.RateLimitError;
 let RiotApiError: typeof ErrorsModule.RiotApiError;
 {
+  // Faked 429s pause the limiter: keep this copy off the shared Riot quota
   const shared = process.env.CACHE_PREFIX;
   process.env.CACHE_PREFIX = `${shared}faults:`;
+  process.env.RIOT_LIMIT_PREFIX = process.env.CACHE_PREFIX;
   jest.isolateModules(() => {
     /* eslint-disable @typescript-eslint/no-require-imports */
     leagueApiService =
@@ -32,6 +34,7 @@ let RiotApiError: typeof ErrorsModule.RiotApiError;
     /* eslint-enable @typescript-eslint/no-require-imports */
   });
   process.env.CACHE_PREFIX = shared;
+  delete process.env.RIOT_LIMIT_PREFIX;
 }
 
 const realFetch = global.fetch;

@@ -2,7 +2,7 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "path": "/api/cron/pdl-snapshot",
+      "path": "/api/cron/fechamento",
       "schedule": "55 2 * * *"
     }
   ]

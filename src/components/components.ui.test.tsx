@@ -13,11 +13,12 @@ describe('PlayerAvatar', () => {
   const PHOTO = 'data:image/gif;base64,R0lGODlhAQABAAAAACw=';
 
   it('shows the photo with an accessible description', () => {
-    render(<PlayerAvatar name="FlyerCloud" src={PHOTO} />);
+    render(<PlayerAvatar name="Alfa" src={PHOTO} />);
 
-    expect(
-      screen.getByRole('img', { name: 'Foto de FlyerCloud' })
-    ).toHaveAttribute('src', PHOTO);
+    expect(screen.getByRole('img', { name: 'Foto de Alfa' })).toHaveAttribute(
+      'src',
+      PHOTO
+    );
   });
 
   it('falls back to the icon without a photo or when it fails to load', () => {

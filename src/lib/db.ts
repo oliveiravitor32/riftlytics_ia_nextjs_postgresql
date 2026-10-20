@@ -9,7 +9,11 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/src/generated/prisma/client';
 
 function createClient() {
-  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const adapter = new PrismaPg(
+    { connectionString: process.env.DATABASE_URL },
+    // Tests use their own Postgres schema ("test"); production uses public
+    { schema: process.env.DATABASE_SCHEMA }
+  );
   return new PrismaClient({ adapter });
 }
 
