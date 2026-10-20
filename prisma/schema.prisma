@@ -28,8 +28,9 @@ model Player {
   // stored ones came in through a teammate and may have gaps)
   matchesSyncedUntil DateTime?
 
-  pdlSnapshots PDLSnapshot[]
-  matches      PlayerMatch[]
+  pdlSnapshots   PDLSnapshot[]
+  levelSnapshots LevelSnapshot[]
+  matches        PlayerMatch[]
   duoAnalysesA DuoAnalysis[] @relation("DuoPlayer1")
   duoAnalysesB DuoAnalysis[] @relation("DuoPlayer2")
 
@@ -61,6 +62,30 @@ model PDLSnapshot {
   @@unique([playerId, queueType, snapshotDate])
   @@index([playerId, queueType, snapshotDate])
   @@map("pdl_snapshots")
+}
+
+// Summoner level per player and day (Brasília), for the daily summary's
+// "N levels left to 30" alert; written with the PDL snapshot
+model LevelSnapshot {
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  snapshotDate  DateTime @db.Date
+  summonerLevel Int
+  capturedAt    DateTime @default(now())
+
+  @@id([playerId, snapshotDate])
+  @@map("level_snapshots")
+}
+
+// WhatsApp bot session (Baileys auth state), one row per key, encrypted by
+// the bot with BOT_SESSION_KEY. Only the bot (bot/auth-store.mjs) reads it.
+model BotSession {
+  id        String   @id
+  data      String
+  updatedAt DateTime @updatedAt
+
+  @@map("bot_session")
 }
 
 // Finished match (never changes): the validated Riot match-v5 payload

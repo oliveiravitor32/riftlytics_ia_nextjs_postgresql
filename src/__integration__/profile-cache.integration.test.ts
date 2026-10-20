@@ -111,6 +111,18 @@ describe("today's PDL snapshot follows cache misses", () => {
     expect(Date.now() - snapshot!.capturedAt.getTime()).toBeLessThan(60_000);
   });
 
+  it("a miss also saves today's summoner level (summary's countdown to 30)", async () => {
+    const body = await (await getProfile(get('profile'), params())).json();
+    const level = await prisma.levelSnapshot.findFirst({
+      where: {
+        snapshotDate: brasiliaDate(),
+        player: { gameName: PLAYER.gameName, tagLine: PLAYER.tagLine },
+      },
+    });
+
+    expect(level?.summonerLevel).toBe(body.summonerLevel);
+  });
+
   it('a cache hit does not touch the DB', async () => {
     await getProfile(get('profile'), params());
     const before = (await todaysSnapshot())!.capturedAt;
