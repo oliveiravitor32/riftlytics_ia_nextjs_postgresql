@@ -39,7 +39,15 @@ export async function loadDatabaseAuthState() {
 
   async function read(id) {
     const { rows } = await db.query('SELECT data FROM bot_session WHERE id = $1', [id]);
-    return rows[0] ? decrypt(rows[0].data) : null;
+    if (!rows[0]) return null;
+    try {
+      return decrypt(rows[0].data);
+    } catch {
+      throw new Error(
+        'A sessão salva foi criptografada com outra BOT_SESSION_KEY. ' +
+          'Use a mesma chave do login ou apague a tabela bot_session e rode `npm run login` de novo.'
+      );
+    }
   }
   async function write(id, value) {
     await db.query(
