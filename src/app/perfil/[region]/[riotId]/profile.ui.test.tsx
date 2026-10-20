@@ -19,7 +19,7 @@ import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
 import { invalidateProfile } from '@/src/services/profileService';
 
-const PLAYER = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
+const PLAYER = { gameName: 'Alfa', tagLine: 'TST', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
 const params = (region: string, slug: string) => ({
   params: Promise.resolve({ region, riotId: slug }),
@@ -163,14 +163,14 @@ describe('not found', () => {
       NOT_FOUND
     );
     await expect(
-      ProfilePage(params('xx9', toRiotSlug('FlyerCloud', 'br1')))
+      ProfilePage(params('xx9', toRiotSlug('Alfa', 'br1')))
     ).rejects.toMatchObject(NOT_FOUND);
   });
 
   it('rejects a real Riot ID that is not in the group', async () => {
-    // Played with FlyerCloud; exists on Riot but isn't a tracked player
+    // Exists on Riot but isn't a tracked player
     await expect(
-      ProfilePage(params('br1', toRiotSlug('Arthurmtd', 'br1')))
+      ProfilePage(params('br1', toRiotSlug('Forasteiro', 'FORA')))
     ).rejects.toMatchObject(NOT_FOUND);
   });
 

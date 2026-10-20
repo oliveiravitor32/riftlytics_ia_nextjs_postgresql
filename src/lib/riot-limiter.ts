@@ -75,4 +75,12 @@ export function createRiotLimiter({
   };
 }
 
-export const riotLimiter = createRiotLimiter({ name: 'app', ...RIOT_LIMITS });
+// Tests answering Riot with mocks (jest/riot-mock) spend no real quota and raise
+// it with RIOT_LIMIT_SCALE (jest/riot-env.ts); production never sets it
+const scale = Number(process.env.RIOT_LIMIT_SCALE ?? 1);
+
+export const riotLimiter = createRiotLimiter({
+  name: 'app',
+  perSecond: RIOT_LIMITS.perSecond * scale,
+  perTwoMinutes: RIOT_LIMITS.perTwoMinutes * scale,
+});

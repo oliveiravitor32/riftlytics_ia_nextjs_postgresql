@@ -17,23 +17,23 @@ it('keys are namespaced with the configured prefix', () => {
 
 it('fetches on a miss, then serves the stored value', async () => {
   const k = key('cached');
-  const fetcher = jest.fn(async () => ({ name: 'FlyerCloud', level: 300 }));
+  const fetcher = jest.fn(async () => ({ name: 'Alfa', level: 300 }));
 
   const first = await cached(k, 60, fetcher);
   const second = await cached(k, 60, fetcher);
 
   expect(first).toEqual({
-    value: { name: 'FlyerCloud', level: 300 },
+    value: { name: 'Alfa', level: 300 },
     hit: false,
   });
   expect(second).toEqual({
-    value: { name: 'FlyerCloud', level: 300 },
+    value: { name: 'Alfa', level: 300 },
     hit: true,
   });
   expect(fetcher).toHaveBeenCalledTimes(1);
   // Really stored in Redis, under the prefixed key
   expect(await redis.get(cacheKey(k))).toEqual({
-    name: 'FlyerCloud',
+    name: 'Alfa',
     level: 300,
   });
 });

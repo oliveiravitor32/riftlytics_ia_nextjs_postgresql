@@ -18,7 +18,7 @@ import { prisma } from '@/src/lib/db';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { leagueApiService } from '@/src/services/leagueApiService';
 
-const PLAYER = { gameName: 'Neutro7', tagLine: 'BR1' };
+const PLAYER = { gameName: 'Bravo', tagLine: 'TST' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
 
 let spy: jest.SpyInstance;
@@ -52,7 +52,13 @@ beforeAll(async () => {
     select: { id: true },
   });
   playerId = player.id;
-  // Make sure there is some history to work with
+  // Same starting point whatever other files stored: no history, then the 12
+  // newest matches (Riot answers are recorded for exactly this sequence)
+  await prisma.playerMatch.deleteMany({ where: { playerId } });
+  await prisma.player.update({
+    where: { id: playerId },
+    data: { matchesSyncedUntil: null },
+  });
   await syncNewMatches(playerId, 12);
 });
 
@@ -73,13 +79,6 @@ describe('syncNewMatches', () => {
     const added = await syncNewMatches(playerId, before.length);
 
     expect(added).toBe(3);
-    // Also when the window is longer than Riot's 100 ids per call
-    expect(
-      await syncNewMatches(
-        playerId,
-        RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES + 50
-      )
-    ).toBeGreaterThanOrEqual(0);
     expect(await storedIds()).toEqual(before);
   });
 
@@ -193,7 +192,7 @@ describe('getProfileMatches', () => {
 
   it('only group players have a stored history', async () => {
     await expect(
-      getProfileMatches('Arthurmtd#br1', 0, 5)
+      getProfileMatches('Forasteiro#FORA', 0, 5)
     ).rejects.toMatchObject({ statusCode: 404 });
   });
 });
@@ -241,4 +240,18 @@ it('the Riot service no longer keeps matches in memory', async () => {
   await leagueApiService.getMatchDetails(matchId);
 
   expect(detailCalls()).toHaveLength(1);
+});
+
+it('asks Riot for at most 100 ids even when told to sync more', async () => {
+  spy.mockClear();
+
+  await syncNewMatches(playerId, RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES + 50);
+
+  const idCalls = riotUrls().filter((url) => url.includes('/ids?'));
+  expect(idCalls.length).toBeGreaterThan(0);
+  for (const url of idCalls) {
+    expect(Number(new URL(url).searchParams.get('count'))).toBeLessThanOrEqual(
+      RIOT_API_CONSTANTS.DEFAULTS.MAX_MATCHES
+    );
+  }
 });

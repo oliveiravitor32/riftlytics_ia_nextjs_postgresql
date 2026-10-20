@@ -14,7 +14,7 @@ import { brasiliaDate } from '@/src/services/snapshotService';
 import { prisma } from '@/src/lib/db';
 import { redis, cacheKey } from '@/src/lib/redis';
 
-const PLAYER = { gameName: 'Neutro7', tagLine: 'BR1', region: 'br1' };
+const PLAYER = { gameName: 'Bravo', tagLine: 'TST', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
 const NAME = encodeURIComponent(RIOT_ID);
 
@@ -156,7 +156,7 @@ describe('POST /api/refresh (forced reload)', () => {
   });
 
   it('only group players can be refreshed', async () => {
-    const res = await post(encodeURIComponent('Arthurmtd#br1'));
+    const res = await post(encodeURIComponent('Forasteiro#FORA'));
 
     expect(res.status).toBe(404);
   });

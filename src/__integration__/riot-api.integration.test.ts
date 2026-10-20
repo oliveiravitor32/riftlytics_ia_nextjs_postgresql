@@ -22,7 +22,7 @@ import { leagueApiService } from '@/src/services/leagueApiService';
 import { invalidateProfile } from '@/src/services/profileService';
 
 // A real, ranked player from the group
-const player = { gameName: 'FlyerCloud', tagLine: 'br1', region: 'br1' };
+const player = { gameName: 'Alfa', tagLine: 'TST', region: 'br1' };
 const riotId = `${player.gameName}#${player.tagLine}`;
 const region = player.region;
 const encoded = encodeURIComponent(riotId);
@@ -181,14 +181,25 @@ describe('GET /api/cron/fechamento (real Riot + Supabase)', () => {
   });
 
   it('stores today snapshot and the new matches of every active player (idempotent)', async () => {
-    const res = await runSnapshotCron(cronRequest(process.env.CRON_SECRET));
+    // One active player is enough to check the close (each one loads up to
+    // 100 matches); the test schema is reset every run
+    await prisma.player.updateMany({
+      where: { NOT: { gameName: player.gameName, tagLine: player.tagLine } },
+      data: { active: false },
+    });
+    const res = await runSnapshotCron(
+      cronRequest(process.env.CRON_SECRET)
+    ).finally(() => prisma.player.updateMany({ data: { active: true } }));
     const body = await res.json();
 
     expect(res.status).toBe(200);
     expect(body.failed).toEqual([]);
     expect(body.snapshots).toBeGreaterThan(0);
-    // Every active player has its newest Riot match stored now
-    const players = await prisma.player.findMany({ where: { active: true } });
+    expect(body.players).toBe(1);
+    // Its newest Riot match is stored now
+    const players = await prisma.player.findMany({
+      where: { gameName: player.gameName, tagLine: player.tagLine },
+    });
     for (const p of players) {
       const [newest] = await leagueApiService.getMatchList(p.puuid!, 0, 1);
       if (!newest) continue;

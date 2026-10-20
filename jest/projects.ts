@@ -51,6 +51,7 @@ export async function unitProject(): Promise<Config> {
       '/node_modules/',
       '\\.integration\\.test\\.',
       '\\.ui\\.test\\.',
+      '\\.live\\.test\\.',
     ],
   })();
 }
@@ -64,6 +65,8 @@ export async function integrationProject(): Promise<Config> {
       setupFiles: ['<rootDir>/jest.integration.setup.ts'],
       setupFilesAfterEnv: ['<rootDir>/jest/server.setup.ts'],
       testMatch: ['<rootDir>/src/**/*.integration.test.{ts,tsx}'],
+      // Real-Riot contract checks only run with npm run test:riot
+      testPathIgnorePatterns: ['/node_modules/', '\\.live\\.test\\.'],
     })()
   );
 }

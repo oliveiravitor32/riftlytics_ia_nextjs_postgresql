@@ -18,7 +18,7 @@ type Route = (
   context: { params: Promise<{ summonerName: string }> }
 ) => Promise<Response>;
 
-const REAL = encodeURIComponent('FlyerCloud#br1');
+const REAL = encodeURIComponent('Alfa#TST');
 const MISSING = encodeURIComponent('zz-nao-existe-987#0000');
 
 function call(route: Route, name: string, path: string, query = '') {
@@ -120,7 +120,7 @@ describe('Riot rate limit → 429 with retryAfter', () => {
   });
 
   it('matches route still serves the stored history on the first page', async () => {
-    const puuid = await leagueApiService.getPuuidByRiotId('FlyerCloud#br1');
+    const puuid = await leagueApiService.getPuuidByRiotId('Alfa#TST');
     // Forces the first page to ask Riot for new ids
     await redis.del(
       cacheKey(
