@@ -39,7 +39,7 @@ export default async function setup() {
   try {
     await db.query(`SET search_path TO "${SCHEMA}"`);
     await db.query(
-      'TRUNCATE player_matches, matches, pdl_snapshots, duo_analyses, players CASCADE'
+      'TRUNCATE player_matches, matches, pdl_snapshots, level_snapshots, duo_analyses, players CASCADE'
     );
     for (const [i, { gameName, tagLine }] of GROUP.entries()) {
       // One without a photo, to cover the icon fallback

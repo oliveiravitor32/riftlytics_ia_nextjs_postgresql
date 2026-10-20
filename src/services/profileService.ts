@@ -10,7 +10,7 @@ import 'server-only';
 import { prisma } from '@/src/lib/db';
 import { cached, invalidate } from '@/src/lib/cache';
 import { leagueApiService } from '@/src/services/leagueApiService';
-import { saveSnapshot } from '@/src/services/snapshotService';
+import { saveLevel, saveSnapshot } from '@/src/services/snapshotService';
 import { logger } from '@/src/lib/logger';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { LeagueEntry } from '@/src/lib/validators';
@@ -66,6 +66,7 @@ async function fetchProfile(
       });
     }
     await saveSnapshot(tracked.id, [profile.rankInfo, profile.flexRankInfo]);
+    await saveLevel(tracked.id, profile.summonerLevel);
   }
 
   return profile;

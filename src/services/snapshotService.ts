@@ -57,6 +57,19 @@ export async function saveSnapshot(
   return ranked.length;
 }
 
+/** Today's summoner level (daily summary's countdown to level 30) */
+export async function saveLevel(
+  playerId: string,
+  summonerLevel: number
+): Promise<void> {
+  const snapshotDate = brasiliaDate();
+  await prisma.levelSnapshot.upsert({
+    where: { playerId_snapshotDate: { playerId, snapshotDate } },
+    update: { summonerLevel, capturedAt: new Date() },
+    create: { playerId, snapshotDate, summonerLevel },
+  });
+}
+
 export type PdlHistoryPoint = { capturedAt: string; leaguePoints: number };
 
 /** Last `days` daily snapshots for a player and queue, oldest first */
