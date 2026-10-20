@@ -1,0 +1,17 @@
+{
+  "name": "riftlytics-bot",
+  "private": true,
+  "type": "module",
+  "description": "Sends the daily summary to the group's WhatsApp (runs on GitHub Actions)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "login": "node --env-file=../.env.local login.mjs",
+    "send": "node send.mjs"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pg": "8.13.1"
+  }
+}

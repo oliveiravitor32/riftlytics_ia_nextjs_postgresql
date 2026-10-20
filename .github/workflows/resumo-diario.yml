@@ -1,0 +1,43 @@
+name: Resumo diário
+
+# 23:30 in Brasília (UTC-3). GitHub may start scheduled runs a few minutes late.
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  # "Run workflow" button, to resend after a failure
+  workflow_dispatch:
+
+concurrency: resumo-diario
+
+jobs:
+  resumo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Day's final PDL snapshot and new matches, before the summary reads them
+      - name: Fechamento do dia
+        run: |
+          curl --fail-with-body --max-time 320 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/fechamento"
+
+      - name: Instalar o bot
+        working-directory: bot
+        run: npm ci --no-audit --no-fund
+
+      - name: Enviar resumo no WhatsApp
+        working-directory: bot
+        run: npm run send
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          WHATSAPP_GROUP_ID: ${{ secrets.WHATSAPP_GROUP_ID }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          BOT_SESSION_KEY: ${{ secrets.BOT_SESSION_KEY }}
