@@ -17,6 +17,8 @@ import { Card } from './ui/card';
 import { PdlChart } from './pdl-chart';
 import { profileHref } from '@/src/lib/riot-id';
 import Link from 'next/link';
+import { TopChampions } from './top-champions';
+import type { TopChampion } from '@/src/services/topChampionsService';
 
 interface ProfileCardProps {
   gameName: string;
@@ -24,6 +26,7 @@ interface ProfileCardProps {
   displayName: string;
   region: string;
   avatarUrl?: string | null;
+  topChampions?: TopChampion[];
 }
 
 export function ProfileCard({
@@ -32,6 +35,7 @@ export function ProfileCard({
   displayName,
   region,
   avatarUrl,
+  topChampions = [],
 }: ProfileCardProps): React.ReactElement {
   // The chart only mounts once the section is opened (closed by default)
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -110,6 +114,7 @@ export function ProfileCard({
               </p>
             </div>
           </div>
+          <TopChampions champions={topChampions} />
           {rankInfo ? (
             <RankBadge
               tier={rankInfo.tier}

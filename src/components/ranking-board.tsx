@@ -10,6 +10,8 @@ import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TrackedPlayer } from '@/src/services/playerService';
+import type { TopChampion } from '@/src/services/topChampionsService';
+import { TopChampions } from './top-champions';
 import { rankQueryOptions, refreshRank } from '@/src/queries/useRankQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { Button } from './ui/button';
@@ -50,6 +52,7 @@ const PODIUM_STYLES = [
 type RankingRow = {
   riotId: string;
   name: string;
+  champions: TopChampion[];
   avatarUrl?: string | null;
   gameName: string;
   tagLine: string;
@@ -62,8 +65,11 @@ type RankingRow = {
 
 export function RankingBoard({
   players,
+  topChampions = {},
 }: {
   players: TrackedPlayer[];
+  /** Top 3 by player id */
+  topChampions?: Record<string, TopChampion[]>;
 }): React.ReactElement {
   const [activeTab, setActiveTab] = useState<QueueTab['id']>('solo');
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -120,6 +126,7 @@ export function RankingBoard({
 
   const rows: RankingRow[] = players.map((s, i) => ({
     riotId: `${s.gameName}#${s.tagLine}`,
+    champions: topChampions[s.id] ?? [],
     name: results[i].data?.name ?? s.gameName,
     avatarUrl: s.avatarUrl,
     gameName: s.gameName,
@@ -287,6 +294,9 @@ export function RankingBoard({
                   <p className="text-xs text-muted-foreground">
                     {wins}V {losses}D · {winRate.toFixed(1)}% de vitórias
                   </p>
+                </div>
+                <div className="hidden sm:block">
+                  <TopChampions champions={row.champions} />
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold uppercase tracking-wider">

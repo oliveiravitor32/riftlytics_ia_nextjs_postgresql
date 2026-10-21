@@ -5,6 +5,7 @@
 import { screen } from '@testing-library/react';
 import RankingPage, { metadata } from './page';
 import { getActivePlayers } from '@/src/services/playerService';
+import { getTopChampions } from '@/src/services/topChampionsService';
 import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
 
@@ -28,6 +29,22 @@ it('renders the title and a ranking with every active player', async () => {
       )
     ).toBeInTheDocument();
   }
+});
+
+it('ranked rows show the 3 most played champions', async () => {
+  const top = await getTopChampions();
+  renderApp(await RankingPage());
+
+  const lists = await screen.findAllByRole(
+    'list',
+    { name: 'Mais jogados nas últimas 100 partidas' },
+    { timeout: RIOT_WAIT_MS }
+  );
+  const shown = lists.map((l) =>
+    [...l.querySelectorAll('img')].map((img) => img.getAttribute('alt'))
+  );
+  const expected = Object.values(top).map((t) => t.map((c) => c.champion));
+  for (const champions of shown) expect(expected).toContainEqual(champions);
 });
 
 it('has a page title for the browser tab', () => {

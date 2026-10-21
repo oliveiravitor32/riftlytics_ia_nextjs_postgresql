@@ -6,12 +6,16 @@
 import React from 'react';
 import { ProfileCard } from '@/src/components/profile-card-new';
 import { getActivePlayers } from '@/src/services/playerService';
+import { getTopChampions } from '@/src/services/topChampionsService';
 
 // Player list comes from the DB on every request
 export const dynamic = 'force-dynamic';
 
 export default async function Home(): Promise<React.ReactElement> {
-  const players = await getActivePlayers();
+  const [players, topChampions] = await Promise.all([
+    getActivePlayers(),
+    getTopChampions(),
+  ]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -62,6 +66,7 @@ export default async function Home(): Promise<React.ReactElement> {
                   displayName={summoner.displayName}
                   region={summoner.region}
                   avatarUrl={summoner.avatarUrl}
+                  topChampions={topChampions[summoner.id] ?? []}
                 />
               </li>
             ))}

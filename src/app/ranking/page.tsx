@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { RankingBoard } from '@/src/components/ranking-board';
 import { getActivePlayers } from '@/src/services/playerService';
+import { getTopChampions } from '@/src/services/topChampionsService';
 
 // Player list comes from the DB on every request
 export const dynamic = 'force-dynamic';
@@ -11,7 +12,10 @@ export const metadata: Metadata = {
 };
 
 export default async function RankingPage() {
-  const players = await getActivePlayers();
+  const [players, topChampions] = await Promise.all([
+    getActivePlayers(),
+    getTopChampions(),
+  ]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-8 text-foreground">
@@ -27,7 +31,7 @@ export default async function RankingPage() {
             Quem está mais na frente entre os amigos.
           </p>
         </header>
-        <RankingBoard players={players} />
+        <RankingBoard players={players} topChampions={topChampions} />
       </section>
     </div>
   );
