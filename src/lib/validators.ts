@@ -61,6 +61,8 @@ export const ParticipantSchema = z.object({
   totalDamageDealtToChampions: z.number(),
   goldEarned: z.number(),
   totalMinionsKilled: z.number(),
+  neutralMinionsKilled: z.number().optional(),
+  largestMultiKill: z.number().optional(),
   teamPosition: z.string().optional(),
   individualPosition: z.string().optional(),
   teamId: z.number(),

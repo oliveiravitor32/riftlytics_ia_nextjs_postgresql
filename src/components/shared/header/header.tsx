@@ -9,7 +9,7 @@ export default function Header() {
         <Logo />
         <NavMenu />
 
-        <div className="ml-auto md:order-last md:ml-0">
+        <div className="ml-auto">
           <ThemeToggle />
         </div>
       </div>

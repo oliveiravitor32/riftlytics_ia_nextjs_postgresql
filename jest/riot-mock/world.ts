@@ -224,6 +224,7 @@ function participant(
     assists: (k + slot * 5) % 15,
     totalMinionsKilled: 120 + ((k + slot) % 80),
     neutralMinionsKilled: slot === 1 ? 140 : 8,
+    largestMultiKill: 1 + ((k + slot) % 5),
     goldEarned: 9000 + slot * 350,
     totalDamageDealtToChampions: 12000 + ((k * 13 + slot * 1700) % 20000),
     visionScore: 10 + slot * 4,
