@@ -46,16 +46,19 @@ export function ProfileCard({
 
   if (isError) {
     return (
-      <Card className="border-border bg-card p-6 shadow-sm">
+      <Card className="p-6">
         <div className="flex flex-col items-center justify-center h-40 gap-4">
-          <AlertCircle className="h-8 w-8 text-foreground" />
+          <AlertCircle
+            className="h-8 w-8 text-muted-foreground"
+            aria-hidden="true"
+          />
           <div className="text-center">
             <p className="font-semibold text-foreground">
               {isRateLimitError(error)
                 ? 'Muitas consultas seguidas'
                 : 'Falha ao carregar o perfil'}
             </p>
-            <p className="mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 max-w-prose text-muted-foreground">
               {isRateLimitError(error)
                 ? `Aguarde um instante e recarregue a página em ${error.retryAfter ?? 60}s.`
                 : error instanceof Error
@@ -70,10 +73,13 @@ export function ProfileCard({
 
   if (isLoading || !profile) {
     return (
-      <Card className="border-border bg-card p-6 shadow-sm">
+      <Card className="p-6">
         <div className="flex items-center justify-center h-40">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 animate-spin text-foreground" />
+            <Loader2
+              className="h-8 w-8 animate-spin text-muted-foreground"
+              aria-hidden="true"
+            />
             <p className="text-muted-foreground">Carregando {displayName}...</p>
           </div>
         </div>
@@ -84,7 +90,7 @@ export function ProfileCard({
   const rankInfo = profile.rankInfo;
   const pdlHistory = profile.pdlHistory;
   return (
-    <Card className="gap-0 overflow-hidden border-border bg-card py-0 shadow-sm transition-colors duration-200 hover:border-foreground/20">
+    <Card className="gap-0 py-0 transition-colors duration-200 hover:border-primary/40">
       <article className="divide-y divide-border">
         {/* Row 1: identity + rank */}
         <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
@@ -147,11 +153,11 @@ export function ProfileCard({
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Histórico de PDL
             </span>
-            <span className="flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-foreground transition-colors group-hover:border-primary group-hover:text-primary">
+            <span className="flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors group-hover:border-primary group-hover:text-primary">
               <span className="group-open:hidden">Mostrar</span>
               <span className="hidden group-open:inline">Ocultar</span>
               <ChevronDown
-                className="size-4 transition-transform duration-200 group-open:rotate-180"
+                className="size-4 opacity-70 transition-transform duration-200 group-open:rotate-180"
                 aria-hidden="true"
               />
             </span>

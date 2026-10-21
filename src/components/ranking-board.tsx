@@ -31,7 +31,7 @@ const TABS: QueueTab[] = [
   { id: 'flex', label: 'Ranqueada Flex', field: 'flexRankInfo' },
 ];
 
-// Top 3 fade from citrus to peach to mist (palette order), 4th+ are neutral
+// Top 3 fade from citrus to peach to warm mist (palette order), 4th+ are neutral
 const PODIUM_STYLES = [
   {
     row: 'border-primary/70 bg-linear-to-r from-primary/20 via-card to-card',
@@ -42,8 +42,8 @@ const PODIUM_STYLES = [
     badge: 'border-accent bg-accent text-accent-foreground',
   },
   {
-    row: 'border-[#cfd4d7]/50 bg-linear-to-r from-[#cfd4d7]/10 via-card to-card',
-    badge: 'border-[#cfd4d7] bg-[#cfd4d7] text-[#111214]',
+    row: 'border-[#d9d4ce]/50 bg-linear-to-r from-[#d9d4ce]/10 via-card to-card',
+    badge: 'border-[#d9d4ce] bg-[#d9d4ce] text-[#171513]',
   },
 ];
 
@@ -152,10 +152,10 @@ export function RankingBoard({
       {isRateLimited && (
         <div
           role="alert"
-          className="mb-6 flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200"
+          className="mb-6 flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
         >
           <AlertTriangle
-            className="mt-0.5 size-5 shrink-0"
+            className="mt-0.5 size-5 shrink-0 opacity-80"
             aria-hidden="true"
           />
           <div>
@@ -193,7 +193,7 @@ export function RankingBoard({
                 onClick={() => setActiveTab(t.id)}
                 onKeyDown={(e) => handleKeyDown(e, i)}
                 className={cn(
-                  'rounded-full px-5 py-2 text-sm font-medium transition-colors',
+                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
                   selected
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -242,8 +242,11 @@ export function RankingBoard({
         <h2 className="sr-only">Ranking da {tab.label}</h2>
 
         {isLoading && (
-          <p className="mb-4 flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+          <p className="mb-4 flex items-center gap-2 text-muted-foreground">
+            <Loader2
+              className="size-4 animate-spin opacity-70"
+              aria-hidden="true"
+            />
             Carregando jogadores...
           </p>
         )}
@@ -258,7 +261,7 @@ export function RankingBoard({
               <li
                 key={row.riotId}
                 className={cn(
-                  'flex items-center gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm',
+                  'flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card',
                   podium?.row
                 )}
               >
@@ -299,7 +302,7 @@ export function RankingBoard({
         </ol>
 
         {!isLoading && ranked.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
             Ninguém está ranqueado na {tab.label} ainda.
           </p>
         )}
