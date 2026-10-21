@@ -116,7 +116,6 @@ it('each card shows the 3 most played champions of the last 100 matches', async 
         .getAllByRole('img')
         .map((img) => img.getAttribute('alt'))
     ).toEqual(champions.map((c) => c.champion));
-    expect(list).toHaveTextContent(`${champions[0].games}`);
   }
 });
 

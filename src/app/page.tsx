@@ -19,39 +19,16 @@ export default async function Home(): Promise<React.ReactElement> {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Hero Section */}
-      <section
-        aria-labelledby="titulo-inicio"
-        className="border-b border-border px-4 py-14"
-      >
-        <div className="max-w-5xl mx-auto">
-          <div className="max-w-prose space-y-4">
-            <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
-              Estatísticas de LoL entre amigos
-            </p>
-            <h1
-              id="titulo-inicio"
-              className="text-5xl font-semibold tracking-tight text-foreground md:text-6xl"
-            >
-              Riftlytics
-            </h1>
-            <p className="text-lg leading-7 text-muted-foreground">
-              Análises de League of Legends para o seu grupo de amigos
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Profiles Grid */}
       <section aria-labelledby="titulo-perfis" className="px-4 py-8">
         <div className="max-w-5xl mx-auto">
           <div className="mb-4">
-            <h2
+            <h1
               id="titulo-perfis"
               className="text-2xl font-semibold tracking-tight text-foreground"
             >
               Perfis dos jogadores
-            </h2>
+            </h1>
             <p className="mt-2 text-muted-foreground">
               Acompanhando {players.length} jogadores
             </p>

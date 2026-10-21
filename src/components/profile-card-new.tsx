@@ -109,12 +109,15 @@ export function ProfileCard({
                   {profile.name}
                 </Link>
               </h3>
-              <p className="text-xs text-muted-foreground">
-                Nível {profile.summonerLevel}
-              </p>
+              {/* Fixed-width level keeps every card's champions aligned */}
+              <div className="mt-0.5 flex items-center gap-2">
+                <p className="w-16 text-xs text-muted-foreground">
+                  Nível {profile.summonerLevel}
+                </p>
+                <TopChampions champions={topChampions} />
+              </div>
             </div>
           </div>
-          <TopChampions champions={topChampions} />
           {rankInfo ? (
             <RankBadge
               tier={rankInfo.tier}
