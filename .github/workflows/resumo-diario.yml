@@ -1,14 +1,15 @@
 name: Resumo diário
 
-# 23:30 in Brasília (UTC-3). GitHub may start scheduled runs a few minutes late.
+# 09:17 in Brasília (UTC-3), closing the game day (10:00 to 09:59). Odd minute
+# on purpose: GitHub delays or drops scheduled runs at busy :00/:30 slots.
 on:
   schedule:
-    - cron: '30 2 * * *'
+    - cron: '17 12 * * *'
   # "Run workflow" button: resend after a failure, or send a past day's summary
   workflow_dispatch:
     inputs:
       dia:
-        description: 'Dia do resumo (AAAA-MM-DD). Vazio = hoje, com o fechamento do dia antes.'
+        description: 'Dia de jogo do resumo (AAAA-MM-DD). Vazio = o dia que está fechando, com o fechamento antes.'
         required: false
         default: ''
 
@@ -35,6 +36,15 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             "${{ secrets.APP_URL }}/api/cron/fechamento"
 
+      # Day being summarized: the one given, or the game day that is ending.
+      # Minus 11 h so a run delayed past 10:00 still picks the day that ended.
+      - name: Dia do resumo
+        id: dia
+        run: |
+          DIA="${{ inputs.dia }}"
+          if [ -z "$DIA" ]; then DIA=$(TZ=America/Sao_Paulo date -d '-11 hours' +%F); fi
+          echo "dia=$DIA" >> "$GITHUB_OUTPUT"
+
       - name: Instalar o bot
         working-directory: bot
         run: npm ci --no-audit --no-fund
@@ -48,4 +58,4 @@ jobs:
           WHATSAPP_GROUP_ID: ${{ secrets.WHATSAPP_GROUP_ID }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           BOT_SESSION_KEY: ${{ secrets.BOT_SESSION_KEY }}
-          RESUMO_DIA: ${{ inputs.dia }}
+          RESUMO_DIA: ${{ steps.dia.outputs.dia }}
