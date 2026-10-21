@@ -23,7 +23,7 @@ export function StatItem({
 }: StatItemProps): React.ReactElement {
   return (
     <div className={cn('flex flex-col gap-0.5', className)}>
-      <span className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <span className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
         {label}
       </span>
       <span

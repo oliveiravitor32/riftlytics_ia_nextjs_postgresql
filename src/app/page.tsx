@@ -18,10 +18,10 @@ export default async function Home(): Promise<React.ReactElement> {
       {/* Hero Section */}
       <section
         aria-labelledby="titulo-inicio"
-        className="border-b border-border/70 bg-card/40 px-4 py-14"
+        className="border-b border-border px-4 py-14"
       >
         <div className="max-w-5xl mx-auto">
-          <div className="max-w-2xl space-y-4">
+          <div className="max-w-prose space-y-4">
             <p className="text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
               Estatísticas de LoL entre amigos
             </p>
@@ -53,7 +53,7 @@ export default async function Home(): Promise<React.ReactElement> {
             </p>
           </div>
 
-          <ul className="flex flex-col gap-5">
+          <ul className="flex flex-col gap-4">
             {players.map((summoner) => (
               <li key={`${summoner.gameName}#${summoner.tagLine}`}>
                 <ProfileCard

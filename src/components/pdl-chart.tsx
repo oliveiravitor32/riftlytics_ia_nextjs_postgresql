@@ -36,7 +36,7 @@ export function PdlChart({
     return (
       <div
         style={{ height }}
-        className="flex items-center justify-center rounded-xl border border-dashed border-border px-4 text-center text-sm text-muted-foreground"
+        className="flex items-center justify-center rounded-lg border border-dashed border-border px-4 text-center text-muted-foreground"
       >
         Ainda não há registros de PDL suficientes (um por dia)
       </div>
@@ -72,7 +72,8 @@ export function PdlChart({
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: 'var(--background)',
+            // Floats above the card: the lighter popover surface
+            backgroundColor: 'var(--popover)',
             border: '1px solid var(--border)',
             borderRadius: 12,
             color: 'var(--foreground)',

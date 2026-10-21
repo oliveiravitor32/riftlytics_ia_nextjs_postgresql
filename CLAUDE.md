@@ -264,16 +264,6 @@ TDD, with tests that run the **real application**: nothing of ours is mocked (ro
 - Integration and ui tests need `.env.local` (`DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`; `RIOT_API_KEY` only for `test:riot`) and use their own Redis key prefix, deleted at the end of the run.
 - GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
 
------------ | ----------------------- | ------------------------------------------------------------------------------------------------------- | ----------------- |
-| unit | `*.test.ts(x)` | Pure logic (limiter, rank order, Riot ID, labels, errors, logger) | local + GitHub CI |
-| integration | `*.integration.test.ts` | Routes, services, cron and DB against the real Riot API + Supabase | local only |
-| ui | `*.ui.test.tsx` | Real components/pages; `fetch('/api/...')` is bridged to the real route handlers (`jest/api-bridge.ts`) | local only |
-
-- Only what is outside our control and can't be triggered safely is faked: Riot's HTTP answer for 429/5xx/timeouts, and the clock in the token-bucket math.
-- Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
-- Integration and ui tests need `.env.local` (`RIOT_API_KEY`, `DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`), write today's PDL snapshots to the real DB (idempotent) and use their own Redis key prefix, deleted at the end of each file.
-- GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
-
 ---
 
 ## 📝 Code Style & Standards
@@ -284,6 +274,7 @@ TDD, with tests that run the **real application**: nothing of ours is mocked (ro
 - **API Routes**: RESTful structure, proper status codes
 - **Error Handling**: Use Zod for validation, custom error classes
 - **Comments**: Document why, not what; include links to Riot API docs
+- **Visual design**: follows the "safe rules" (anthonyhobday.com/sideprojects/saferules): warm-tinted neutrals only (citrus hue, <5% saturation), near-black/near-white, one depth technique (`shadow-card` = `--elevation`, none in dark mode), borders that contrast with both card and page, closer surfaces lighter (popover > card > page), body text ≥16px, button horizontal padding = 2× vertical, icons beside text at lower opacity, inner radius = outer − gap, `max-w-prose` for running text. `dark:` follows the header's theme (`.dark` class), not the OS.
 
 ---
 

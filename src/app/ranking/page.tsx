@@ -14,12 +14,12 @@ export default async function RankingPage() {
   const players = await getActivePlayers();
 
   return (
-    <div className="min-h-screen bg-background px-4 py-12 text-foreground">
+    <div className="min-h-screen bg-background px-4 py-8 text-foreground">
       <section aria-labelledby="titulo-ranking" className="mx-auto max-w-5xl">
         <header className="mb-8 space-y-2">
           <h1
             id="titulo-ranking"
-            className="text-4xl font-semibold tracking-tight"
+            className="text-3xl font-semibold tracking-tight"
           >
             Ranking
           </h1>

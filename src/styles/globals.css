@@ -2,6 +2,10 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* dark: follows the theme chosen in the header (next-themes puts .dark on
+   <html>), not the operating system's setting */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
@@ -46,75 +50,88 @@
 }
 
 :root {
-  /* Citrus Charcoal palette:
-     #111214 charcoal · #2A2D2F graphite · #FF7A1A citrus
-     #FFD0A6 peach · #CFD4D7 mist */
-  --background: #f6f7f8;
-  --foreground: #111214;
-  --card: #ffffff;
-  --card-foreground: #111214;
-  --popover: #ffffff;
-  --popover-foreground: #111214;
+  /* Citrus Charcoal palette. Neutrals carry a hint of the citrus hue (warm,
+     <5% saturation) so the whole palette reads as one; no cool greys.
+     Near-black/near-white instead of #000/#fff. Light containers sit within
+     7% brightness of the page, dark ones within 12%. */
+  --background: #f7f5f3;
+  --foreground: #171513;
+  --card: #fdfcfb;
+  --card-foreground: #171513;
+  --popover: #fdfcfb;
+  --popover-foreground: #171513;
   --primary: #ff7a1a;
-  --primary-foreground: #111214;
-  --secondary: #e7eaec;
-  --secondary-foreground: #2a2d2f;
-  --muted: #eceef0;
-  --muted-foreground: #50565a;
+  --primary-foreground: #171513;
+  --secondary: #ebe8e4;
+  --secondary-foreground: #2d2a27;
+  --muted: #efedea;
+  --muted-foreground: #5e5852;
   --accent: #ffd0a6;
-  --accent-foreground: #111214;
+  --accent-foreground: #171513;
   --destructive: #d83a2e;
-  --border: #cfd4d7;
-  --input: #cfd4d7;
+  /* Light mode: borders darker than both the card and the page */
+  --border: #d9d4ce;
+  --input: #d9d4ce;
   --ring: #ff7a1a;
   --chart-1: #ff7a1a;
-  --chart-2: #2a2d2f;
+  --chart-2: #2d2a27;
   --chart-3: #ffd0a6;
-  --chart-4: #8a9196;
-  --chart-5: #cfd4d7;
+  --chart-4: #958c85;
+  --chart-5: #d9d4ce;
   --radius: 0.625rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #111214;
+  --sidebar: #fdfcfb;
+  --sidebar-foreground: #171513;
   --sidebar-primary: #ff7a1a;
-  --sidebar-primary-foreground: #111214;
+  --sidebar-primary-foreground: #171513;
   --sidebar-accent: #ffd0a6;
-  --sidebar-accent-foreground: #111214;
-  --sidebar-border: #cfd4d7;
+  --sidebar-accent-foreground: #171513;
+  --sidebar-border: #d9d4ce;
   --sidebar-ring: #ff7a1a;
+  /* One depth technique: a soft shadow, blur = 2× its offset */
+  --elevation: 0 1px 2px rgb(23 21 19 / 0.06), 0 2px 4px rgb(23 21 19 / 0.04);
 }
 
 .dark {
-  --background: #111214;
-  --foreground: #eef0f1;
-  --card: #1c1e20;
-  --card-foreground: #eef0f1;
-  --popover: #1c1e20;
-  --popover-foreground: #eef0f1;
+  --background: #131211;
+  --foreground: #f2efec;
+  --card: #1d1b19;
+  --card-foreground: #f2efec;
+  /* Closer to the viewer = lighter */
+  --popover: #272421;
+  --popover-foreground: #f2efec;
   --primary: #ff7a1a;
-  --primary-foreground: #111214;
-  --secondary: #2a2d2f;
-  --secondary-foreground: #eef0f1;
-  --muted: #2a2d2f;
-  --muted-foreground: #a9b0b4;
+  --primary-foreground: #171513;
+  --secondary: #2b2826;
+  --secondary-foreground: #f2efec;
+  --muted: #2b2826;
+  --muted-foreground: #aea79f;
   --accent: #ffd0a6;
-  --accent-foreground: #111214;
+  --accent-foreground: #171513;
   --destructive: #ff6b5e;
-  --border: #2a2d2f;
-  --input: #3a3e41;
+  /* Dark mode: borders lighter than both the card and the page */
+  --border: #36322e;
+  --input: #3e3a36;
   --ring: #ff7a1a;
   --chart-1: #ff7a1a;
   --chart-2: #ffd0a6;
-  --chart-3: #cfd4d7;
-  --chart-4: #8a9196;
-  --chart-5: #2a2d2f;
-  --sidebar: #1c1e20;
-  --sidebar-foreground: #eef0f1;
+  --chart-3: #d9d4ce;
+  --chart-4: #958c85;
+  --chart-5: #36322e;
+  --sidebar: #1d1b19;
+  --sidebar-foreground: #f2efec;
   --sidebar-primary: #ff7a1a;
-  --sidebar-primary-foreground: #111214;
-  --sidebar-accent: #2a2d2f;
-  --sidebar-accent-foreground: #eef0f1;
-  --sidebar-border: #2a2d2f;
+  --sidebar-primary-foreground: #171513;
+  --sidebar-accent: #2b2826;
+  --sidebar-accent-foreground: #f2efec;
+  --sidebar-border: #36322e;
   --sidebar-ring: #ff7a1a;
+  /* Shadows don't read in the dark: depth comes from lighter surfaces */
+  --elevation: none;
+}
+
+/* The only shadow in the app (see --elevation) */
+@utility shadow-card {
+  box-shadow: var(--elevation);
 }
 
 @layer base {
@@ -125,6 +142,12 @@
     @apply font-sans;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-base leading-relaxed text-foreground antialiased;
+  }
+  /* Bigger text needs less letter spacing and line height */
+  h1,
+  h2,
+  h3 {
+    @apply leading-tight tracking-tight;
   }
 }

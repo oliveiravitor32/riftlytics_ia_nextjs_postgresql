@@ -34,8 +34,11 @@ export function ProfileMatches({
 
   if (query.isLoading) {
     return (
-      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      <p className="flex items-center gap-2 text-muted-foreground">
+        <Loader2
+          className="size-4 animate-spin opacity-70"
+          aria-hidden="true"
+        />
         Carregando partidas...
       </p>
     );
@@ -43,7 +46,7 @@ export function ProfileMatches({
 
   if (query.isError) {
     return (
-      <p role="alert" className="text-sm text-muted-foreground">
+      <p role="alert" className="max-w-prose text-muted-foreground">
         Não foi possível carregar as partidas:{' '}
         {query.error instanceof Error ? query.error.message : 'erro'}
       </p>
@@ -122,7 +125,7 @@ export function ProfileMatches({
           Partidas recentes
         </h2>
         {matches.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
             Nenhuma partida recente encontrada.
           </p>
         ) : (

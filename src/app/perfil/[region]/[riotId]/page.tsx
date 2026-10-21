@@ -112,9 +112,12 @@ export default async function ProfilePage({
         <div className="mx-auto max-w-5xl px-4 py-12">
           <p
             role="alert"
-            className="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-200"
+            className="flex max-w-prose gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
           >
-            <AlertTriangle className="size-5 shrink-0" aria-hidden="true" />
+            <AlertTriangle
+              className="mt-0.5 size-5 shrink-0 opacity-80"
+              aria-hidden="true"
+            />
             Muitas consultas seguidas à Riot. Tente recarregar a página em{' '}
             {error.retryAfter}s.
           </p>

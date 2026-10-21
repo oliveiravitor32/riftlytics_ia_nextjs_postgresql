@@ -64,7 +64,7 @@ function ImageRow({
   items: { name: string; champion: string; image: string }[];
 }) {
   return (
-    <div className="min-w-32 rounded-xl border border-border/60 bg-muted/20 p-2">
+    <div className="min-w-32">
       <div className="flex flex-col gap-1">
         {items.map((item) => (
           <Link
@@ -101,12 +101,12 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
       : ((kdaParts[0] + kdaParts[2]) / kdaParts[1]).toFixed(2);
 
   return (
-    <Card className="max-w-150 gap-0 py-2 justify-center w-full overflow-hidden border-border/70 bg-card/90 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <Card className="max-w-150 gap-0 py-3 justify-center w-full transition-colors duration-200 hover:border-primary/40">
       <CardHeader className="pb-0">
         <div className="flex gap-2">
           <CardTitle>{match.queue}</CardTitle>
-          <CardDescription className="flex items-center gap-1 rounded-md border border-border bg-background/80 px-2 py-0.5">
-            <Clock3 className="size-3" />
+          <CardDescription className="flex items-center gap-1">
+            <Clock3 className="size-3 opacity-70" aria-hidden="true" />
             {match.duration} - {match.playedAt}
           </CardDescription>
         </div>
@@ -119,34 +119,32 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
                 <img
                   src={match.championImage}
                   alt={match.champion}
-                  className="size-14 rounded-xl border border-border object-cover"
+                  className="size-14 rounded-lg border border-border object-cover"
                 />
                 <span
-                  className={`absolute -right-2 -top-2 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.16em] ${meta.tone}`}
+                  className={`absolute -right-2 -top-2 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] ${meta.tone}`}
                 >
-                  <ResultIcon className="size-2.5" />
+                  <ResultIcon
+                    className="size-3 opacity-70"
+                    aria-hidden="true"
+                  />
                   {meta.label}
                 </span>
               </div>
 
-              <div className="relative shrink-0">
-                <img
-                  src={match.laneOpponent.image}
-                  alt={match.laneOpponent.champion}
-                  title={match.laneOpponent.champion}
-                  className="size-11 rounded-xl border border-border object-cover opacity-90"
-                />
-                <span className="absolute -bottom-1 -right-1 rounded-full border border-border bg-background px-1 py-0.5 text-[8px] uppercase tracking-[0.16em] text-muted-foreground">
-                  rota
-                </span>
-              </div>
+              <img
+                src={match.laneOpponent.image}
+                alt={`Oponente de rota: ${match.laneOpponent.champion}`}
+                title={`Oponente de rota: ${match.laneOpponent.champion}`}
+                className="size-11 shrink-0 rounded-lg border border-border object-cover opacity-90"
+              />
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-col gap-3">
                   <div className="text-2xl font-semibold leading-none tracking-tight">
                     {match.kda}
                   </div>
-                  <div className="ml-1 pb-0.5 text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                  <div className="ml-1 pb-0.5 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                     {kdaValue} KDA
                   </div>
                 </div>
