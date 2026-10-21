@@ -263,6 +263,7 @@ TDD, with tests that run the **real application**: nothing of ours is mocked (ro
 - Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
 - Integration and ui tests need `.env.local` (`DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`; `RIOT_API_KEY` only for `test:riot`) and use their own Redis key prefix, deleted at the end of the run.
 - GitHub CI runs only lint, Prettier, `tsc`, build and the unit suite (no paid resources).
+- **Running the suite (Claude Code):** run `test:all` in the background with a monitor that only reports failures (`FAIL`, `✕`), the coverage line and the `Tests:` summary; on a failure, stop and fix it; on the summary, stop the run. Why: Jest doesn't exit after the run (an open handle), so a foreground run looked stuck for 10+ minutes while a test had already failed unseen.
 
 ---
 

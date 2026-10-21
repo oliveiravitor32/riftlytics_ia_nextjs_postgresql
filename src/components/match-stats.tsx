@@ -1,0 +1,78 @@
+/**
+ * MatchStatsCards Component
+ * Champion and role stats over every stored match (computed on the server)
+ */
+
+import React from 'react';
+import type { MatchStats } from '@/src/services/matchService';
+import { Card } from './ui/card';
+
+export function MatchStatsCards({
+  stats,
+}: {
+  stats: MatchStats;
+}): React.ReactElement | null {
+  const { champions, roles, total } = stats;
+  if (total === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Card className="gap-2 px-4 py-3">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Campeões mais jogados
+        </h2>
+        <ul className="space-y-1.5">
+          {champions.map((c) => (
+            <li key={c.champion} className="flex items-center gap-3">
+              {/* eslint-disable-next-line @next/next/no-img-element -- Data Dragon CDN */}
+              <img
+                src={c.image}
+                alt=""
+                className="size-6 rounded-md border border-border"
+              />
+              <span className="flex-1 truncate text-sm font-medium">
+                {c.champion}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {c.games} {c.games === 1 ? 'partida' : 'partidas'} ·{' '}
+                {Math.round((c.wins / c.games) * 100)}% ·{' '}
+                {((c.kills + c.assists) / Math.max(1, c.deaths)).toFixed(2)} AMA
+              </span>
+            </li>
+          ))}
+        </ul>
+      </Card>
+
+      <Card className="gap-2 px-4 py-3">
+        <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          Distribuição de rotas
+        </h2>
+        <ul className="space-y-1.5">
+          {roles.map(({ role, games }) => {
+            const pct = Math.round((games / total) * 100);
+            return (
+              <li key={role} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span>{role}</span>
+                  <span className="text-muted-foreground">{pct}%</span>
+                </div>
+                <div
+                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  role="presentation"
+                >
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Com base nas {total} partidas guardadas
+        </p>
+      </Card>
+    </div>
+  );
+}
