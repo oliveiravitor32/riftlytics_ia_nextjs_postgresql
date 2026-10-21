@@ -165,10 +165,11 @@
 Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 
 - **Player** (`players`): `gameName` + `tagLine` (unique pair), `region`, `displayName`, `avatarUrl?` (photo; icon fallback), `puuid?` (unique, filled on first lookup), `active` (hide without deleting).
-- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, **game day**: 10:00 to 09:59 in Brasília, `gameDay()`, because the group plays past midnight); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by the daily close `/api/cron/fechamento` at 09:30 Brasília (GitHub Actions workflow `Resumo diário`, `CRON_SECRET`).
+- **PDLSnapshot** (`pdl_snapshots`): one row per player, queue (`RANKED_SOLO_5x5` / `RANKED_FLEX_SR`) and day (`snapshotDate`, unique key, **game day**: 10:00 to 09:59 in Brasília, `gameDay()`, because the group plays past midnight); `capturedAt` holds the exact time of the last capture that day. Fields: `tier`, `rank`, `leaguePoints`, `wins`, `losses`. Updated on every fresh Riot read of a group player (cache miss or forced reload) and finally by the daily close `/api/cron/fechamento` at 09:17 Brasília (GitHub Actions workflow `Resumo diário`, triggered by cron-job.org; GitHub schedule at 09:37 as backup; `CRON_SECRET`).
 - **Match** (`matches`): one row per finished match (`id` = Riot match id), with the validated match-v5 payload in `data` (JSON). Fetched from Riot once, read from the DB forever after.
 - **PlayerMatch** (`player_matches`): a group member's line in a match (`playedAt`, `queueId`, `championName`, `position`, `win`, K/D/A); every group member in a stored match gets one. Profile lists and stats read from here.
 - **LevelSnapshot** (`level_snapshots`): summoner level per player and game day, saved with the PDL snapshot; feeds the daily summary's countdown to level 30.
+- **SummarySent** (`summary_sent`): game days whose summary was already sent; `bot/send.mjs` skips a day found here (two triggers, one message).
 - **BotSession** (`bot_session`): WhatsApp bot session (Baileys auth state), one encrypted row per key; only `bot/` reads it.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 

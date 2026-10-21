@@ -1,10 +1,11 @@
 name: Resumo diário
 
-# 09:17 in Brasília (UTC-3), closing the game day (10:00 to 09:59). Odd minute
-# on purpose: GitHub delays or drops scheduled runs at busy :00/:30 slots.
+# Main trigger: cron-job.org calls workflow_dispatch at 09:17 in Brasília,
+# closing the game day (10:00 to 09:59). GitHub's own schedule below is only a
+# backup (it can run late or not at all); bot/send.mjs sends each day once.
 on:
   schedule:
-    - cron: '17 12 * * *'
+    - cron: '37 12 * * *'
   # "Run workflow" button: resend after a failure, or send a past day's summary
   workflow_dispatch:
     inputs:
@@ -12,6 +13,10 @@ on:
         description: 'Dia de jogo do resumo (AAAA-MM-DD). Vazio = o dia que está fechando, com o fechamento antes.'
         required: false
         default: ''
+      forcar:
+        description: 'Enviar mesmo se o resumo desse dia já foi enviado'
+        type: boolean
+        default: false
 
 concurrency: resumo-diario
 
@@ -59,3 +64,4 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           BOT_SESSION_KEY: ${{ secrets.BOT_SESSION_KEY }}
           RESUMO_DIA: ${{ steps.dia.outputs.dia }}
+          RESUMO_FORCAR: ${{ inputs.forcar }}
