@@ -3,6 +3,7 @@
  * our services) plus the client match list hitting the real /api/matches.
  */
 
+import type React from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProfilePage, { generateMetadata } from './page';
@@ -18,6 +19,23 @@ import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
 import { invalidateProfile } from '@/src/services/profileService';
+import { resolveServerTree } from '@/jest/server-tree';
+import {
+  PdlHistory,
+  ProfileStats,
+  QueueCards,
+  RecentMatches,
+  SummonerLevel,
+} from './sections';
+
+// The page's async parts, streamed by Next inside their own Suspense
+const SECTIONS = [
+  SummonerLevel,
+  QueueCards,
+  PdlHistory,
+  ProfileStats,
+  RecentMatches,
+];
 
 const PLAYER = { gameName: 'Alfa', tagLine: 'TST', region: 'br1' };
 const RIOT_ID = `${PLAYER.gameName}#${PLAYER.tagLine}`;
@@ -29,12 +47,21 @@ const playerParams = params(
   toRiotSlug(PLAYER.gameName, PLAYER.tagLine)
 );
 
+const renderPage = async (show: 'content' | 'fallback' = 'content') =>
+  renderApp(
+    (await resolveServerTree(
+      await ProfilePage(playerParams),
+      SECTIONS,
+      show
+    )) as React.ReactElement
+  );
+
 async function renderProfile() {
-  const result = renderApp(await ProfilePage(playerParams));
+  const result = await renderPage();
   await waitFor(
     () =>
       expect(
-        screen.queryByText('Carregando partidas...')
+        screen.queryByRole('status', { name: 'Carregando partidas' })
       ).not.toBeInTheDocument(),
     { timeout: RIOT_WAIT_MS }
   );
@@ -46,6 +73,34 @@ const matchItems = () =>
     screen.getByRole('heading', { name: 'Partidas recentes' })
       .parentElement as HTMLElement
   ).getAllByRole('listitem');
+
+it('shows the frame at once, with a placeholder for every part still loading', async () => {
+  await renderPage('fallback');
+
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(RIOT_ID);
+  for (const label of [
+    'Carregando nível',
+    'Carregando Solo/Duo',
+    'Carregando Ranqueada Flex',
+    'Carregando histórico de PDL',
+    'Carregando estatísticas',
+    'Carregando partidas',
+  ]) {
+    expect(screen.getByRole('status', { name: label })).toBeInTheDocument();
+  }
+  expect(
+    screen.getByRole('heading', { name: 'Partidas recentes' })
+  ).toBeInTheDocument();
+});
+
+it('each part replaces its own placeholder', async () => {
+  await renderPage();
+
+  expect(screen.queryByRole('status', { name: 'Carregando nível' })).toBeNull();
+  expect(
+    screen.queryByRole('status', { name: 'Carregando estatísticas' })
+  ).toBeNull();
+});
 
 it('header shows the Riot ID, level and region', async () => {
   const puuid = await leagueApiService.getPuuidByRiotId(RIOT_ID);
@@ -207,13 +262,7 @@ it('the page title is the Riot ID', async () => {
 });
 
 it('match list explains when the matches cannot be loaded', async () => {
-  renderApp(
-    <ProfileMatches
-      riotId="zz-nao-existe-321#0000"
-      region="br1"
-      stats={{ total: 0, champions: [], roles: [] }}
-    />
-  );
+  renderApp(<ProfileMatches riotId="zz-nao-existe-321#0000" region="br1" />);
 
   expect(
     await screen.findByText(
@@ -227,7 +276,7 @@ it('match list explains when the matches cannot be loaded', async () => {
 });
 
 // Riot's 429 can't be triggered safely: only Riot's HTTP answer is faked
-it('rate limit shows the friendly alert instead of the profile', async () => {
+it('rate limit shows the friendly alert in the parts that need Riot', async () => {
   const realNodeFetch = globalThis.__nodeFetch;
   globalThis.__nodeFetch = async (input, init) =>
     String(input).includes('riotgames.com')
@@ -236,9 +285,15 @@ it('rate limit shows the friendly alert instead of the profile', async () => {
 
   try {
     await invalidateProfile(RIOT_ID, PLAYER.region);
-    renderApp(await ProfilePage(playerParams));
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Tente recarregar a página em 1s'
+    await renderPage();
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts.length).toBeGreaterThan(0);
+    for (const alert of alerts) {
+      expect(alert).toHaveTextContent('Tente recarregar a página em 1s');
+    }
+    // The frame still shows who the profile is
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      RIOT_ID
     );
   } finally {
     globalThis.__nodeFetch = realNodeFetch;

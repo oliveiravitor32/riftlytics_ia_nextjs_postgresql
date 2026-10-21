@@ -2,25 +2,39 @@
  * Profile page: /perfil/[region]/[Name-TAG]
  * Rank for both queues, real PDL history, champion/role stats over every
  * stored match and the match history. Group players only.
+ *
+ * The frame (name, avatar, titles) renders at once; every part that needs
+ * Riot or the DB streams in on its own (./sections.tsx), with a placeholder
+ * of the same shape until then.
  */
 
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { AlertTriangle } from 'lucide-react';
-import { getRankedProfile } from '@/src/services/profileService';
 import { findTrackedPlayer } from '@/src/services/playerService';
-import { getPdlHistory } from '@/src/services/snapshotService';
-import { getMatchStats, syncRecentMatches } from '@/src/services/matchService';
-import { NotFoundError, RateLimitError } from '@/src/lib/errors';
 import { parseRiotSlug } from '@/src/lib/riot-id';
-import { formatTier } from '@/src/lib/rank-labels';
-import type { LeagueEntry } from '@/src/lib/validators';
 import { PlayerAvatar } from '@/src/components/player-avatar';
-import { PdlChart } from '@/src/components/pdl-chart';
-import { ProfileMatches } from '@/src/components/profile-matches';
 import { Card } from '@/src/components/ui/card';
+import {
+  MatchListSkeleton,
+  MatchStatsSkeleton,
+  PdlChartSkeleton,
+  QueueCardSkeleton,
+  SummonerLevelSkeleton,
+} from '@/src/components/profile-skeletons';
+import {
+  PdlHistory,
+  ProfileStats,
+  QueueCards,
+  RecentMatches,
+  SummonerLevel,
+} from './sections';
 
 type Params = { region: string; riotId: string };
+
+const PDL_CHART_HEIGHT = 110;
+const sectionTitle =
+  'text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground';
 
 export async function generateMetadata({
   params,
@@ -32,54 +46,6 @@ export async function generateMetadata({
     title: id ? `${id.gameName}#${id.tagLine}` : 'Perfil',
     description: 'Elo, histórico de PDL e partidas recentes',
   };
-}
-
-function QueueCard({
-  title,
-  entry,
-}: {
-  title: string;
-  entry: LeagueEntry | null;
-}) {
-  const games = entry ? entry.wins + entry.losses : 0;
-  const winRate = games > 0 ? (entry!.wins / games) * 100 : 0;
-
-  return (
-    <Card className="gap-2 px-4 py-3">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {title}
-      </h2>
-      {entry ? (
-        <>
-          <div className="flex items-baseline justify-between gap-3">
-            <p className="font-semibold">
-              {formatTier(entry.tier, entry.rank)}{' '}
-              <span className="text-sm font-normal text-muted-foreground">
-                · {entry.leaguePoints} PDL
-              </span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">
-                {winRate.toFixed(1)}%
-              </span>{' '}
-              · {entry.wins}V {entry.losses}D
-            </p>
-          </div>
-          <div
-            className="h-1.5 overflow-hidden rounded-full bg-muted"
-            role="presentation"
-          >
-            <div
-              className="h-full rounded-full bg-primary"
-              style={{ width: `${winRate}%` }}
-            />
-          </div>
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">Sem ranque nesta fila</p>
-      )}
-    </Card>
-  );
 }
 
 export default async function ProfilePage({
@@ -95,39 +61,7 @@ export default async function ProfilePage({
   if (!tracked || tracked.region !== region) notFound();
 
   const riotId = `${id.gameName}#${id.tagLine}`;
-
-  let data;
-  try {
-    const { profile } = await getRankedProfile(riotId, region);
-    // Read after the profile: a cache miss has just updated today's snapshot
-    const pdlHistory = await getPdlHistory(id.gameName, id.tagLine);
-    // New games first, so the stats include them
-    await syncRecentMatches(riotId);
-    const stats = await getMatchStats(riotId);
-    data = { profile, pdlHistory, stats };
-  } catch (error) {
-    if (error instanceof NotFoundError) notFound();
-    if (error instanceof RateLimitError) {
-      return (
-        <div className="mx-auto max-w-5xl px-4 py-12">
-          <p
-            role="alert"
-            className="flex max-w-prose gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
-          >
-            <AlertTriangle
-              className="mt-0.5 size-5 shrink-0 opacity-80"
-              aria-hidden="true"
-            />
-            Muitas consultas seguidas à Riot. Tente recarregar a página em{' '}
-            {error.retryAfter}s.
-          </p>
-        </div>
-      );
-    }
-    throw error;
-  }
-
-  const { profile, pdlHistory, stats } = data;
+  const section = { riotId, region };
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 px-4 py-8">
@@ -142,30 +76,53 @@ export default async function ProfilePage({
             {id.gameName}
             <span className="text-muted-foreground">#{id.tagLine}</span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Nível {profile.summonerLevel} · {region.toUpperCase()}
-          </p>
+          <Suspense fallback={<SummonerLevelSkeleton />}>
+            <SummonerLevel {...section} />
+          </Suspense>
         </div>
       </header>
 
       <section aria-label="Elo por fila" className="grid gap-3 sm:grid-cols-2">
-        <QueueCard title="Solo/Duo" entry={profile.rankInfo} />
-        <QueueCard title="Ranqueada Flex" entry={profile.flexRankInfo} />
+        <Suspense
+          fallback={
+            <>
+              <QueueCardSkeleton title="Solo/Duo" />
+              <QueueCardSkeleton title="Ranqueada Flex" />
+            </>
+          }
+        >
+          <QueueCards {...section} />
+        </Suspense>
       </section>
 
       <section aria-labelledby="titulo-pdl">
         <Card className="gap-2 px-4 py-3">
-          <h2
-            id="titulo-pdl"
-            className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground"
-          >
+          <h2 id="titulo-pdl" className={sectionTitle}>
             Histórico de PDL · Solo/Duo
           </h2>
-          <PdlChart data={pdlHistory} height={110} />
+          <Suspense fallback={<PdlChartSkeleton height={PDL_CHART_HEIGHT} />}>
+            <PdlHistory
+              {...section}
+              gameName={id.gameName}
+              tagLine={id.tagLine}
+              height={PDL_CHART_HEIGHT}
+            />
+          </Suspense>
         </Card>
       </section>
 
-      <ProfileMatches riotId={riotId} region={region} stats={stats} />
+      <Suspense fallback={<MatchStatsSkeleton />}>
+        <ProfileStats {...section} />
+      </Suspense>
+
+      <section aria-labelledby="titulo-partidas" className="space-y-3">
+        <h2 id="titulo-partidas" className={sectionTitle}>
+          Partidas recentes
+        </h2>
+        <Suspense fallback={<MatchListSkeleton />}>
+          <RecentMatches {...section} />
+        </Suspense>
+      </section>
     </div>
   );
 }
