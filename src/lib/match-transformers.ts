@@ -1,7 +1,9 @@
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import type { Match, Participant } from '@/src/lib/validators';
 
-const DATA_DRAGON_VERSION = '15.8.1';
+// Used when the latest version can't be read (Data Dragon down).
+// Champions released after it have no image here.
+export const DATA_DRAGON_FALLBACK_VERSION = '15.8.1';
 
 type RuneTreeName =
   | 'Precision'
@@ -115,8 +117,11 @@ const spellImages: Record<number, { name: string; image: string }> = {
   1: { name: 'Cleanse', image: ddragon('spell/SummonerBoost.png') },
 };
 
-function ddragon(path: string): string {
-  return `https://ddragon.leagueoflegends.com/cdn/${DATA_DRAGON_VERSION}/img/${path}`;
+function ddragon(
+  path: string,
+  version: string = DATA_DRAGON_FALLBACK_VERSION
+): string {
+  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/${path}`;
 }
 
 function perkImage(path: string): string {
@@ -124,13 +129,16 @@ function perkImage(path: string): string {
 }
 
 // Riot's championName is already the Data Dragon id (e.g. "MonkeyKing")
-export function championImage(championName: string): string {
-  return ddragon(`champion/${championName}.png`);
+export function championImage(
+  championName: string,
+  version: string = DATA_DRAGON_FALLBACK_VERSION
+): string {
+  return ddragon(`champion/${championName}.png`, version);
 }
 
-function itemImage(itemId: number | undefined): string | null {
+function itemImage(itemId: number | undefined, version: string): string | null {
   if (!itemId) return null;
-  return ddragon(`item/${itemId}.png`);
+  return ddragon(`item/${itemId}.png`, version);
 }
 
 function formatDuration(durationSeconds: number): string {
@@ -226,11 +234,11 @@ function displayName(participant: Participant): string | undefined {
   return participant.riotIdGameName || participant.summonerName || undefined;
 }
 
-function participantToTeammate(participant: Participant) {
+function participantToTeammate(participant: Participant, version: string) {
   return {
     name: displayName(participant) ?? participant.puuid.slice(0, 8),
     champion: participant.championName,
-    image: championImage(participant.championName),
+    image: championImage(participant.championName, version),
   };
 }
 
@@ -256,19 +264,22 @@ function totalDamageForTeam(
 export function buildGameResumeMatch(
   match: Match,
   playerPuuid: string,
-  fallbackPlayerName?: string
+  fallbackPlayerName?: string,
+  // Data Dragon version for the images (the latest has every champion)
+  version: string = DATA_DRAGON_FALLBACK_VERSION
 ): GameResumeMatch {
   // The match came from this player's history, so they are in it
   const player = match.info.participants.find(
     (participant) => participant.puuid === playerPuuid
   )!;
   const teamId = player.teamId;
+  const toTeammate = (p: Participant) => participantToTeammate(p, version);
   const allies = match.info.participants
     .filter((participant) => participant.teamId === teamId)
-    .map(participantToTeammate);
+    .map(toTeammate);
   const enemies = match.info.participants
     .filter((participant) => participant.teamId !== teamId)
-    .map(participantToTeammate);
+    .map(toTeammate);
   const laneOpponentParticipant =
     match.info.participants
       .filter((participant) => participant.teamId !== teamId)
@@ -302,8 +313,8 @@ export function buildGameResumeMatch(
     playerName:
       displayName(player) ?? fallbackPlayerName ?? playerPuuid.slice(0, 8),
     champion: player.championName,
-    championImage: championImage(player.championName),
-    laneOpponent: participantToTeammate(laneOpponentParticipant),
+    championImage: championImage(player.championName, version),
+    laneOpponent: toTeammate(laneOpponentParticipant),
     role: roleLabel(player.teamPosition || player.individualPosition),
     queue: queueLabel(match.info.queueId),
     duration: formatDuration(match.info.gameDuration),
@@ -312,7 +323,7 @@ export function buildGameResumeMatch(
     damageShare,
     spells: [spellFromId(player.summoner1Id), spellFromId(player.summoner2Id)],
     items: itemIds
-      .map((itemId) => itemImage(itemId))
+      .map((itemId) => itemImage(itemId, version))
       .filter((item): item is string => Boolean(item))
       .map((image, index) => ({
         name: `Item ${index + 1}`,

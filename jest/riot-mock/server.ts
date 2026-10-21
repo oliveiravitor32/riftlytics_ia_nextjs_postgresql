@@ -1,13 +1,15 @@
 /**
  * Answers *.riotgames.com requests from the fake world (./world.ts), the way
  * Riot does: same paths, query parameters, status codes and JSON shapes.
- * Any other URL goes to the real network. Tests that need a 429/5xx/timeout
+ * Data Dragon's version list (ddragon.leagueoflegends.com/api/versions.json)
+ * is answered too. Any other URL goes to the real network. Tests that need a 429/5xx/timeout
  * still replace fetch on their own.
  *
  * RIOT_MODE=live skips this and calls the real Riot API (npm run test:riot).
  */
 
 import {
+  DDRAGON_VERSIONS,
   account,
   leagueEntries,
   match,
@@ -87,6 +89,12 @@ export function withRiotMock(realFetch: typeof fetch): typeof fetch {
       typeof input === 'string' ? input : input.toString(),
       'http://localhost'
     );
+    if (
+      url.host === 'ddragon.leagueoflegends.com' &&
+      url.pathname === '/api/versions.json'
+    ) {
+      return json(DDRAGON_VERSIONS);
+    }
     if (!url.host.endsWith('riotgames.com')) return realFetch(input, init);
 
     const path = decodeURIComponent(url.pathname);

@@ -16,6 +16,7 @@ import {
   championImage,
   roleLabel,
 } from '@/src/lib/match-transformers';
+import { latestDataDragonVersion } from '@/src/services/dataDragonService';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import type { Prisma } from '@/src/generated/prisma/client';
 import type { Match } from '@/src/lib/validators';
@@ -270,6 +271,7 @@ export async function getProfileMatches(
     rows = await readPage(player, start, count + 1);
   }
 
+  const version = await latestDataDragonVersion();
   return {
     matches: rows
       .slice(0, count)
@@ -277,7 +279,8 @@ export async function getProfileMatches(
         buildGameResumeMatch(
           r.match.data as unknown as Match,
           player.puuid,
-          riotId
+          riotId,
+          version
         )
       ),
     hasMore: rows.length > count,
@@ -314,12 +317,14 @@ export async function getMatchStats(riotId: string): Promise<MatchStats> {
     },
   });
 
+  // The newest images have every champion
+  const version = await latestDataDragonVersion();
   const champions = new Map<string, ChampionStats>();
   const roles = new Map<string, number>();
   for (const r of rows) {
     const c = champions.get(r.championName) ?? {
       champion: r.championName,
-      image: championImage(r.championName),
+      image: championImage(r.championName, version),
       games: 0,
       wins: 0,
       kills: 0,

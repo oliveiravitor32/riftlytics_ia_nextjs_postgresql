@@ -94,6 +94,14 @@ export const riotIdOf = (p: MockPlayer) => `${p.gameName}#${p.tagLine}`;
 
 /** Matches in the world (k = 0 is the newest) */
 export const MATCH_COUNT = 260;
+
+/** Data Dragon's version list (newest first) */
+export const DDRAGON_VERSIONS = [
+  '15.21.1',
+  '15.20.1',
+  '15.19.1',
+  'lolpatch_7.20',
+];
 const FIRST_MATCH_ID = 3_100_000_000;
 const HOUR = 3_600_000;
 // Newest game ended an hour ago (rounded so a run sees one fixed history)
