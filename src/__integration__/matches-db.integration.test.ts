@@ -14,6 +14,7 @@ import {
   getProfileMatches,
   syncNewMatches,
 } from '@/src/services/matchService';
+import { latestDataDragonVersion } from '@/src/services/dataDragonService';
 import { prisma } from '@/src/lib/db';
 import { RIOT_API_CONSTANTS } from '@/src/constants/riotApi';
 import { leagueApiService } from '@/src/services/leagueApiService';
@@ -210,6 +211,14 @@ describe('getMatchStats', () => {
     );
     expect(stats.champions.length).toBeLessThanOrEqual(5);
     expect(stats.roles.reduce((sum, r) => sum + r.games, 0)).toBe(rows.length);
+  });
+
+  it('shows champion images from the latest Data Dragon version', async () => {
+    const stats = await getMatchStats(RIOT_ID);
+
+    expect(stats.champions[0].image).toContain(
+      `/cdn/${await latestDataDragonVersion()}/`
+    );
   });
 });
 

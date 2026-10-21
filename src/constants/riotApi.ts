@@ -100,6 +100,7 @@ export const RIOT_API_CONSTANTS = {
     MATCH_IDS: 60 * 10, // a page of match ids
     PUUID: 60 * 60 * 24 * 30, // never changes
     REFRESH_LOCK: 60 * 2, // one forced reload per player
+    DDRAGON_VERSION: 60 * 60 * 24, // latest Data Dragon version
   } as const,
 
   // API Response Defaults
