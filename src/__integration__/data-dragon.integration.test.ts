@@ -28,7 +28,9 @@ it('serves the cached version without asking again', async () => {
   globalThis.fetch = spy;
 
   expect(await latestDataDragonVersion()).toBe(DDRAGON_VERSIONS[0]);
-  expect(spy).not.toHaveBeenCalled();
+  // Redis also goes through fetch; only Data Dragon must not be asked
+  const urls = spy.mock.calls.map(([input]) => String(input));
+  expect(urls.some((u) => u.includes('ddragon'))).toBe(false);
 });
 
 it('falls back when Data Dragon fails', async () => {
