@@ -1,6 +1,6 @@
 # Bot do WhatsApp (resumo diário)
 
-Todo dia às **23:30 (Brasília)** o workflow `Resumo diário`
+Todo dia às **09:30 (Brasília)**, fechando o dia de jogo (10:00 às 09:59), o workflow `Resumo diário`
 (`.github/workflows/resumo-diario.yml`) roda no GitHub Actions:
 
 1. chama `/api/cron/fechamento` (PDL final do dia + partidas novas);

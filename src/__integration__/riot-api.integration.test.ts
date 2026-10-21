@@ -13,7 +13,7 @@ import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as getMatches } from '@/src/app/api/matches/[summonerName]/route';
 import { GET as runSnapshotCron } from '@/src/app/api/cron/fechamento/route';
 import {
-  brasiliaDate,
+  gameDay,
   getPdlHistory,
   saveSnapshot,
 } from '@/src/services/snapshotService';
@@ -217,7 +217,7 @@ describe('GET /api/cron/fechamento (real Riot + Supabase)', () => {
       where: { gameName: player.gameName, tagLine: player.tagLine },
     });
     const today = await prisma.pDLSnapshot.findFirstOrThrow({
-      where: { playerId: tracked.id, snapshotDate: brasiliaDate() },
+      where: { playerId: tracked.id, snapshotDate: gameDay() },
     });
     await saveSnapshot(tracked.id, [
       {

@@ -1,12 +1,12 @@
 /**
- * Facts of one Brasília day for the WhatsApp summary (server only): rank
+ * Facts of one game day (10:00 to 09:59 in Brasília) for the WhatsApp summary (server only): rank
  * changes, the countdown to level 30 and the day's highlights, read from the
  * snapshots and stored matches. The message itself is src/lib/daily-summary.ts.
  */
 
 import 'server-only';
 import { prisma } from '@/src/lib/db';
-import { brasiliaDate } from '@/src/services/snapshotService';
+import { DAY_START_HOUR } from '@/src/services/snapshotService';
 import {
   RANKED_LEVEL,
   dayHighlights,
@@ -25,10 +25,13 @@ function appUrl(): string {
   return vercel ? `https://${vercel}` : 'http://localhost:3000';
 }
 
-/** `day`: any moment of the Brasília day, or its UTC midnight (brasiliaDate) */
+/** `day`: the game day as its UTC midnight (gameDay) */
 export async function collectDaySummary(day: Date): Promise<DaySummary> {
-  const snapshotDate = brasiliaDate(new Date(day.getTime() + BRASILIA_OFFSET));
-  const start = new Date(snapshotDate.getTime() + BRASILIA_OFFSET);
+  const snapshotDate = day;
+  // 10:00 in Brasília of that date, until 09:59 of the next
+  const start = new Date(
+    day.getTime() + BRASILIA_OFFSET + DAY_START_HOUR * HOUR
+  );
   const end = new Date(start.getTime() + 24 * HOUR);
 
   const players = await prisma.player.findMany({

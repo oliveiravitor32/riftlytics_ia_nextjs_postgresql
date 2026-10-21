@@ -17,6 +17,7 @@ import type { LeagueEntry } from '@/src/lib/validators';
 import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
 import { apiCalls } from '@/jest/api-bridge';
+import { getTopChampions } from '@/src/services/topChampionsService';
 
 type Profile = {
   name: string;
@@ -94,6 +95,28 @@ it('each card shows level, rank, LP and record from the real profile', async () 
     expect(cardOf(p)).toHaveTextContent(
       `${winRate}% (${rank.wins}V ${rank.losses}D)`
     );
+  }
+});
+
+it('each card shows the 3 most played champions of the last 100 matches', async () => {
+  const top = await getTopChampions();
+  await renderHome();
+
+  for (const p of players) {
+    const champions = top[p.id] ?? [];
+    const list = within(cardOf(p)).queryByRole('list', {
+      name: 'Mais jogados nas últimas 100 partidas',
+    });
+    if (champions.length === 0) {
+      expect(list).toBeNull();
+      continue;
+    }
+    expect(
+      within(list!)
+        .getAllByRole('img')
+        .map((img) => img.getAttribute('alt'))
+    ).toEqual(champions.map((c) => c.champion));
+    expect(list).toHaveTextContent(`${champions[0].games}`);
   }
 });
 

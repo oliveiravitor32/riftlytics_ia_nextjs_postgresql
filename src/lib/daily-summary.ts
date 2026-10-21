@@ -1,5 +1,5 @@
 /**
- * The daily WhatsApp summary (23:30 in Brasília): pure functions that turn
+ * The daily WhatsApp summary (09:30 in Brasília, closing the game day): pure functions that turn
  * the day's facts into the message. Reading the facts from the database is
  * src/services/dailySummaryService.ts.
  */
@@ -45,7 +45,7 @@ export type DayHighlights = {
 };
 
 export type DaySummary = {
-  /** UTC midnight of the Brasília day */
+  /** UTC midnight of the game day (10:00 to 09:59 in Brasília) */
   day: Date;
   appUrl: string;
   rankChanges: RankChange[];
