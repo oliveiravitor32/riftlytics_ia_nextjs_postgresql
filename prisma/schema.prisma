@@ -88,6 +88,15 @@ model BotSession {
   @@map("bot_session")
 }
 
+// Game days whose WhatsApp summary was already sent: a second trigger of the
+// workflow (external cron + GitHub's own schedule) must not send it twice
+model SummarySent {
+  day    DateTime @id @db.Date
+  sentAt DateTime @default(now())
+
+  @@map("summary_sent")
+}
+
 // Finished match (never changes): the validated Riot match-v5 payload
 model Match {
   id           String   @id // Riot match id, e.g. BR1_1234567890
