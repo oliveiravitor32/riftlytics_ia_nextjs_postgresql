@@ -5,10 +5,7 @@
  */
 
 import { leagueApiService } from '@/src/services/leagueApiService';
-import {
-  buildGameResumeMatch,
-  dataDragonVersion,
-} from '@/src/lib/match-transformers';
+import { buildGameResumeMatch } from '@/src/lib/match-transformers';
 import type { Match, Participant } from '@/src/lib/validators';
 
 const RIOT_ID = 'Alfa#TST';
@@ -46,10 +43,6 @@ describe('real match', () => {
     expect(card.matchId).toBe(match.metadata.matchId);
     expect(card.champion).toBe(me.championName);
     expect(card.championImage).toContain(`/champion/${me.championName}.png`);
-    // Images come from the match's own patch, so newer champions exist there
-    expect(card.championImage).toContain(
-      `/cdn/${dataDragonVersion(match.info.gameVersion)}/`
-    );
     expect(card.kda).toBe(`${me.kills}/${me.deaths}/${me.assists}`);
     expect(card.cs).toBe(me.totalMinionsKilled);
     expect(card.result).toBe(me.win ? 'win' : 'loss');

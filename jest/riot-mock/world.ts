@@ -95,8 +95,7 @@ export const riotIdOf = (p: MockPlayer) => `${p.gameName}#${p.tagLine}`;
 /** Matches in the world (k = 0 is the newest) */
 export const MATCH_COUNT = 260;
 
-/** Patch of every fake match, and Data Dragon's version list (newest first) */
-export const MATCH_GAME_VERSION = '15.20.710.4560';
+/** Data Dragon's version list (newest first) */
 export const DDRAGON_VERSIONS = [
   '15.21.1',
   '15.20.1',
@@ -319,7 +318,7 @@ export function match(matchId: string): MatchDto | undefined {
       gameName: `teambuilder-match-${FIRST_MATCH_ID - k}`,
       gameStartTimestamp: start,
       gameType: 'MATCHED_GAME',
-      gameVersion: MATCH_GAME_VERSION,
+      gameVersion: '15.20.710.4560',
       mapId: QUEUES[k % QUEUES.length] === 450 ? 12 : 11,
       participants,
       platformId: 'BR1',

@@ -271,6 +271,7 @@ export async function getProfileMatches(
     rows = await readPage(player, start, count + 1);
   }
 
+  const version = await latestDataDragonVersion();
   return {
     matches: rows
       .slice(0, count)
@@ -278,7 +279,8 @@ export async function getProfileMatches(
         buildGameResumeMatch(
           r.match.data as unknown as Match,
           player.puuid,
-          riotId
+          riotId,
+          version
         )
       ),
     hasMore: rows.length > count,
@@ -315,7 +317,7 @@ export async function getMatchStats(riotId: string): Promise<MatchStats> {
     },
   });
 
-  // Stats mix every patch, so use the newest images (has every champion)
+  // The newest images have every champion
   const version = await latestDataDragonVersion();
   const champions = new Map<string, ChampionStats>();
   const roles = new Map<string, number>();

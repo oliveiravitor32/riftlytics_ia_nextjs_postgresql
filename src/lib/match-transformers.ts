@@ -1,18 +1,9 @@
 import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import type { Match, Participant } from '@/src/lib/validators';
 
-// Used when the real version is unknown (spells/items, missing patch, Data
-// Dragon down). Champions released after it have no image here.
+// Used when the latest version can't be read (Data Dragon down).
+// Champions released after it have no image here.
 export const DATA_DRAGON_FALLBACK_VERSION = '15.8.1';
-
-/**
- * Data Dragon version of a match patch: "15.20.710.4560" -> "15.20.1".
- * See https://developer.riotgames.com/docs/lol#data-dragon_versions
- */
-export function dataDragonVersion(gameVersion: string | undefined): string {
-  const m = gameVersion?.match(/^(\d+)\.(\d+)\./);
-  return m ? `${m[1]}.${m[2]}.1` : DATA_DRAGON_FALLBACK_VERSION;
-}
 
 type RuneTreeName =
   | 'Precision'
@@ -273,14 +264,15 @@ function totalDamageForTeam(
 export function buildGameResumeMatch(
   match: Match,
   playerPuuid: string,
-  fallbackPlayerName?: string
+  fallbackPlayerName?: string,
+  // Data Dragon version for the images (the latest has every champion)
+  version: string = DATA_DRAGON_FALLBACK_VERSION
 ): GameResumeMatch {
   // The match came from this player's history, so they are in it
   const player = match.info.participants.find(
     (participant) => participant.puuid === playerPuuid
   )!;
   const teamId = player.teamId;
-  const version = dataDragonVersion(match.info.gameVersion);
   const toTeammate = (p: Participant) => participantToTeammate(p, version);
   const allies = match.info.participants
     .filter((participant) => participant.teamId === teamId)

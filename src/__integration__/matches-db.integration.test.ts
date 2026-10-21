@@ -168,6 +168,14 @@ describe('getProfileMatches', () => {
     expect(page.hasMore).toBe(true);
   });
 
+  it('shows match images from the latest Data Dragon version', async () => {
+    const page = await getProfileMatches(RIOT_ID, 0, 1);
+
+    expect(page.matches[0].championImage).toContain(
+      `/cdn/${await latestDataDragonVersion()}/`
+    );
+  });
+
   it('"load more" reads stored matches from the DB only', async () => {
     const ids = await storedIds();
     spy.mockClear();
