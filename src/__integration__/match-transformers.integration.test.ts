@@ -44,7 +44,14 @@ describe('real match', () => {
     expect(card.champion).toBe(me.championName);
     expect(card.championImage).toContain(`/champion/${me.championName}.png`);
     expect(card.kda).toBe(`${me.kills}/${me.deaths}/${me.assists}`);
-    expect(card.cs).toBe(me.totalMinionsKilled);
+    // CS counts lane minions and jungle monsters, like the in-game score
+    expect(card.cs).toBe(
+      me.totalMinionsKilled + (me.neutralMinionsKilled ?? 0)
+    );
+    expect(card.csPerMinute).toBe(
+      (card.cs / (match.info.gameDuration / 60)).toFixed(1)
+    );
+    expect(card.championLevel).toBe(me.champLevel);
     expect(card.result).toBe(me.win ? 'win' : 'loss');
     expect(card.playerSide).toBe(me.teamId === 100 ? 'blue' : 'red');
     expect(card.duration).toMatch(/^\d+:\d{2}$/);
@@ -63,7 +70,7 @@ describe('real match', () => {
     );
   });
 
-  it('shows only the items actually bought and a damage share', () => {
+  it('shows only the items actually bought, the trinket apart, and a damage share', () => {
     const card = build();
     const bought = [
       me.item0,
@@ -72,11 +79,32 @@ describe('real match', () => {
       me.item3,
       me.item4,
       me.item5,
-      me.item6,
     ].filter(Boolean);
 
     expect(card.items).toHaveLength(bought.length);
+    expect(card.trinket?.image).toContain(`/item/${me.item6}.png`);
+    expect(build(variant({ item6: 0 })).trinket).toBeNull();
     expect(card.damageShare).toMatch(/^\d{1,3}%$/);
+  });
+
+  it('kill participation: my kills + assists over my team kills', () => {
+    const teamKills = match.info.participants
+      .filter((p) => p.teamId === me.teamId)
+      .reduce((sum, p) => sum + p.kills, 0);
+
+    expect(build().killParticipation).toBe(
+      Math.round(((me.kills + me.assists) / teamKills) * 100)
+    );
+  });
+
+  it.each([
+    [1, null],
+    [2, 'Abate duplo'],
+    [3, 'Abate triplo'],
+    [4, 'Abate quádruplo'],
+    [5, 'Pentakill'],
+  ])('largest multikill %i is shown as %s', (largestMultiKill, label) => {
+    expect(build(variant({ largestMultiKill })).multiKill).toBe(label);
   });
 
   it('does not invent an LP change (match-v5 has no LP data)', () => {
@@ -137,6 +165,10 @@ describe('variations of the real payload', () => {
 
     expect(card.spells[0].name).toBe('Desconhecido');
     expect(card.runes.primaryTree.name).toBe('Precision');
+    // Data Dragon names tree icons by style id (the old path was a 403)
+    expect(card.runes.primaryTree.image).toMatch(
+      /perk-images\/Styles\/7201_Precision\.png$/
+    );
     expect(card.runes.keystone.name).toBe('Precision');
   });
 
@@ -145,6 +177,16 @@ describe('variations of the real payload', () => {
     for (const p of copy.info.participants) p.totalDamageDealtToChampions = 0;
 
     expect(build(copy).damageShare).toBe('0%');
+  });
+
+  it('a team with no kills has 0% kill participation', () => {
+    const copy = structuredClone(match);
+    for (const p of copy.info.participants) {
+      p.kills = 0;
+      p.assists = 0;
+    }
+
+    expect(build(copy).killParticipation).toBe(0);
   });
 
   it('players without a Riot ID name fall back to the summoner name, then the PUUID', () => {

@@ -130,6 +130,8 @@ export interface ParticipantDto {
   assists: number;
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
+  /** 1 = no multikill, 2 = double ... 5 = penta */
+  largestMultiKill: number;
   goldEarned: number;
   totalDamageDealtToChampions: number;
   visionScore: number;

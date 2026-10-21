@@ -15,23 +15,23 @@ type RuneTreeName =
 const runeTreeImages: Record<number, { name: RuneTreeName; image: string }> = {
   8000: {
     name: 'Precision',
-    image: perkImage('Styles/Precision/Precision.png'),
+    image: perkImage('Styles/7201_Precision.png'),
   },
   8100: {
     name: 'Domination',
-    image: perkImage('Styles/Domination/Domination.png'),
+    image: perkImage('Styles/7200_Domination.png'),
   },
   8200: {
     name: 'Sorcery',
-    image: perkImage('Styles/Sorcery/Sorcery.png'),
+    image: perkImage('Styles/7202_Sorcery.png'),
   },
   8300: {
     name: 'Inspiration',
-    image: perkImage('Styles/Inspiration/Inspiration.png'),
+    image: perkImage('Styles/7203_Whimsy.png'),
   },
   8400: {
     name: 'Resolve',
-    image: perkImage('Styles/Resolve/Resolve.png'),
+    image: perkImage('Styles/7204_Resolve.png'),
   },
 };
 
@@ -214,7 +214,7 @@ function runeTreeFromId(styleId: number): { name: string; image: string } {
   return (
     runeTreeImages[styleId] || {
       name: 'Precision',
-      image: perkImage('Styles/Precision/Precision.png'),
+      image: perkImage('Styles/7201_Precision.png'),
     }
   );
 }
@@ -261,6 +261,13 @@ function totalDamageForTeam(
     );
 }
 
+const MULTI_KILL_LABELS: Record<number, string> = {
+  2: 'Abate duplo',
+  3: 'Abate triplo',
+  4: 'Abate quádruplo',
+  5: 'Pentakill',
+};
+
 export function buildGameResumeMatch(
   match: Match,
   playerPuuid: string,
@@ -302,8 +309,12 @@ export function buildGameResumeMatch(
     player.item3,
     player.item4,
     player.item5,
-    player.item6,
   ];
+  const trinketImage = itemImage(player.item6, version);
+  const teamKills = match.info.participants
+    .filter((participant) => participant.teamId === teamId)
+    .reduce((sum, participant) => sum + participant.kills, 0);
+  const cs = player.totalMinionsKilled + (player.neutralMinionsKilled ?? 0);
 
   return {
     matchId: match.metadata.matchId,
@@ -319,7 +330,14 @@ export function buildGameResumeMatch(
     queue: queueLabel(match.info.queueId),
     duration: formatDuration(match.info.gameDuration),
     kda: `${player.kills}/${player.deaths}/${player.assists}`,
-    cs: player.totalMinionsKilled,
+    championLevel: player.champLevel ?? player.championLevel ?? 0,
+    cs,
+    csPerMinute: (cs / Math.max(1, match.info.gameDuration / 60)).toFixed(1),
+    killParticipation:
+      teamKills > 0
+        ? Math.round(((player.kills + player.assists) / teamKills) * 100)
+        : 0,
+    multiKill: MULTI_KILL_LABELS[player.largestMultiKill ?? 1] ?? null,
     damageShare,
     spells: [spellFromId(player.summoner1Id), spellFromId(player.summoner2Id)],
     items: itemIds
@@ -329,6 +347,7 @@ export function buildGameResumeMatch(
         name: `Item ${index + 1}`,
         image,
       })),
+    trinket: trinketImage ? { name: 'Sentinela', image: trinketImage } : null,
     runes: {
       primaryTree: runeTreeFromId(primaryStyle),
       keystone: keystoneFromId(primarySelection, primaryStyle),
