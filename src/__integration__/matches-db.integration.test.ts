@@ -155,6 +155,19 @@ describe('getMatch', () => {
     // The player's line came back with it
     expect(await storedIds()).toContain(matchId);
   });
+  it('two lookups of the same new match at once both succeed', async () => {
+    // e.g. two profiles opening together, or the profile's stats and match
+    // list syncing in parallel
+    const [matchId] = await storedIds();
+    await prisma.match.delete({ where: { id: matchId } });
+
+    const [a, b] = await Promise.all([getMatch(matchId), getMatch(matchId)]);
+
+    expect(a.metadata.matchId).toBe(matchId);
+    expect(b).toEqual(a);
+    expect(await prisma.match.count({ where: { id: matchId } })).toBe(1);
+    expect(await storedIds()).toContain(matchId);
+  });
 });
 
 describe('getProfileMatches', () => {

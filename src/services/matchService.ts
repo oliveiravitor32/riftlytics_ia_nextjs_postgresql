@@ -57,10 +57,11 @@ export async function getMatch(matchId: string): Promise<Match> {
   if (stored) return stored.data as unknown as Match;
 
   const match = await leagueApiService.getMatchDetails(matchId);
-  await prisma.match.upsert({
-    where: { id: matchId },
-    update: {},
-    create: {
+  // ON CONFLICT DO NOTHING: another request may be storing the same match
+  // right now (an upsert would fail on the unique id in that race)
+  await prisma.match.createMany({
+    skipDuplicates: true,
+    data: {
       id: matchId,
       queueId: match.info.queueId,
       gameCreation: new Date(match.info.gameCreation),
