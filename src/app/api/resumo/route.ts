@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { collectDaySummary } from '@/src/services/dailySummaryService';
-import { brasiliaDate } from '@/src/services/snapshotService';
+import { gameDay } from '@/src/services/snapshotService';
 import { buildSummaryText } from '@/src/lib/daily-summary';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       { status: 400 }
     );
   }
-  const day = dia ? new Date(`${dia}T00:00:00Z`) : brasiliaDate();
+  const day = dia ? new Date(`${dia}T00:00:00Z`) : gameDay();
 
   const summary = await collectDaySummary(day);
   return NextResponse.json({ text: buildSummaryText(summary) });

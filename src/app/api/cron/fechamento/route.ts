@@ -1,6 +1,6 @@
 /**
  * API Route: GET /api/cron/fechamento
- * Daily close, called by the GitHub Actions workflow "Resumo diário" at 23:30
+ * Daily close, called by the GitHub Actions workflow "Resumo diário" at 09:30
  * in Brasília (.github/workflows/resumo-diario.yml), right before the WhatsApp
  * summary: the final PDL snapshot and the new matches of every group player.
  * Also used locally for the first load of matches (npm run fechamento).

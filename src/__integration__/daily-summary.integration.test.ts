@@ -10,11 +10,11 @@ import { collectDaySummary } from '@/src/services/dailySummaryService';
 import { buildSummaryText } from '@/src/lib/daily-summary';
 import { prisma } from '@/src/lib/db';
 
-// A past Brasília day, far from the mock world's matches (which are recent)
+// A past game day, far from the mock world's matches (which are recent)
 const DAY = '2025-03-10';
 const date = (d: string) => new Date(`${d}T00:00:00Z`);
-// Brasília is UTC-3: 23:00 there is 02:00 UTC of the next day
-const at = (hhmm: string) => new Date(`${DAY}T${hhmm}:00-03:00`);
+// Brasília is UTC-3; a game day runs from 10:00 to 09:59 of the next day
+const at = (hhmm: string, day = DAY) => new Date(`${day}T${hhmm}:00-03:00`);
 
 let alfa: string;
 let bravo: string;
@@ -104,18 +104,19 @@ beforeAll(async () => {
     ],
   });
 
-  // Games of the day (Brasília), plus one just before and one just after
+  // Games of the game day, plus one just before and one just after
   await played(alfa, at('10:00'), true, [10, 1, 5], 'Katarina');
   await played(alfa, at('11:00'), true, [4, 4, 4]);
   await played(alfa, at('12:00'), true, [6, 2, 6]);
   await played(bravo, at('20:00'), false, [1, 9, 2], 'Yasuo');
-  await played(bravo, at('23:59'), false, [2, 5, 3]);
-  await played(bravo, new Date(`${DAY}T02:59:00Z`), false, [0, 20, 0]); // 23:59 of the 9th
-  await played(bravo, new Date('2025-03-11T03:00:00Z'), true, [30, 0, 30]); // 00:00 of the 11th
+  // Late night: 02:00 of the 11th still belongs to the 10th
+  await played(bravo, at('02:00', '2025-03-11'), false, [2, 5, 3]);
+  await played(bravo, at('09:59'), false, [0, 20, 0]); // still the 9th
+  await played(bravo, at('10:00', '2025-03-11'), true, [30, 0, 30]); // the 11th
 });
 
 describe('collectDaySummary', () => {
-  it('reads one Brasília calendar day of facts', async () => {
+  it('reads one game day of facts (10:00 to 09:59)', async () => {
     const summary = await collectDaySummary(date(DAY));
 
     expect(summary.rankChanges).toEqual([
@@ -133,7 +134,7 @@ describe('collectDaySummary', () => {
       },
     ]);
     expect(summary.levels).toEqual([{ player: 'Echo', from: 24, to: 26 }]);
-    // Only the 5 games inside the day: the 0/20/0 and the 30/0/30 are out
+    // Only the 5 games of the game day: the 0/20/0 and the 30/0/30 are out
     expect(summary.highlights).toEqual({
       bestKda: {
         player: 'Alfa',
@@ -190,7 +191,7 @@ describe('GET /api/resumo', () => {
     );
   });
 
-  it("defaults to today's Brasília day", async () => {
+  it('defaults to the current game day', async () => {
     const res = await call('', process.env.CRON_SECRET);
     expect(res.status).toBe(200);
   });

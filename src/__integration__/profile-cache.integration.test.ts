@@ -10,7 +10,7 @@ import { GET as getProfile } from '@/src/app/api/profile/[summonerName]/route';
 import { GET as getRank } from '@/src/app/api/rank/[summonerName]/route';
 import { POST as refresh } from '@/src/app/api/refresh/[summonerName]/route';
 import { invalidateProfile } from '@/src/services/profileService';
-import { brasiliaDate } from '@/src/services/snapshotService';
+import { gameDay } from '@/src/services/snapshotService';
 import { prisma } from '@/src/lib/db';
 import { redis, cacheKey } from '@/src/lib/redis';
 
@@ -38,7 +38,7 @@ async function todaysSnapshot() {
   return prisma.pDLSnapshot.findFirst({
     where: {
       queueType: 'RANKED_SOLO_5x5',
-      snapshotDate: brasiliaDate(),
+      snapshotDate: gameDay(),
       player: { gameName: PLAYER.gameName, tagLine: PLAYER.tagLine },
     },
   });
@@ -115,7 +115,7 @@ describe("today's PDL snapshot follows cache misses", () => {
     const body = await (await getProfile(get('profile'), params())).json();
     const level = await prisma.levelSnapshot.findFirst({
       where: {
-        snapshotDate: brasiliaDate(),
+        snapshotDate: gameDay(),
         player: { gameName: PLAYER.gameName, tagLine: PLAYER.tagLine },
       },
     });
@@ -174,14 +174,14 @@ describe('POST /api/refresh (forced reload)', () => {
   });
 });
 
-describe('brasiliaDate', () => {
-  it('is the calendar day in São Paulo (UTC-3), as a UTC midnight', () => {
-    // 01:30 UTC on the 17th is still 22:30 on the 16th in Brasília
-    expect(brasiliaDate(new Date('2026-10-17T01:30:00Z')).toISOString()).toBe(
-      '2026-10-16T00:00:00.000Z'
-    );
-    expect(brasiliaDate(new Date('2026-10-17T03:30:00Z')).toISOString()).toBe(
-      '2026-10-17T00:00:00.000Z'
-    );
+describe('gameDay', () => {
+  it('a day runs from 10:00 to 09:59 in Brasília, as a UTC midnight', () => {
+    const day = (iso: string) => gameDay(new Date(iso)).toISOString();
+    // 02:00 of the 17th in Brasília (late-night games) still counts as the 16th
+    expect(day('2026-10-17T05:00:00Z')).toBe('2026-10-16T00:00:00.000Z');
+    // 09:59 of the 17th: last minute of the 16th
+    expect(day('2026-10-17T12:59:00Z')).toBe('2026-10-16T00:00:00.000Z');
+    // 10:00 of the 17th: the 17th starts
+    expect(day('2026-10-17T13:00:00Z')).toBe('2026-10-17T00:00:00.000Z');
   });
 });
