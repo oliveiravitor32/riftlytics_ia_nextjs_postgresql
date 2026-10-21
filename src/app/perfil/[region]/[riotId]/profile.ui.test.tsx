@@ -72,7 +72,7 @@ const matchItems = () =>
   within(
     screen.getByRole('heading', { name: 'Partidas recentes' })
       .parentElement as HTMLElement
-  ).getAllByRole('listitem');
+  ).getAllByRole('article');
 
 it('shows the frame at once, with a placeholder for every part still loading', async () => {
   await renderPage('fallback');
@@ -163,6 +163,20 @@ it('lists the 10 most recent matches', async () => {
   await renderProfile();
 
   expect(matchItems()).toHaveLength(matches.length);
+
+  // Each card tells the result, the KDA, kill participation and CS/min
+  const [first] = matches;
+  const card = matchItems()[0];
+  expect(card).toHaveAccessibleName(
+    `${first.result === 'win' ? 'Vitória' : 'Derrota'} de ${first.champion}`
+  );
+  const [k, d, a] = first.kda.split('/');
+  expect(card).toHaveTextContent(`${k} / ${d} / ${a}`);
+  expect(card).toHaveTextContent(`${first.killParticipation}%`);
+  expect(card).toHaveTextContent(`${first.cs} (${first.csPerMinute})`);
+  expect(within(card).getByText(first.playerName).closest('li')).toHaveClass(
+    'font-semibold'
+  );
 });
 
 it('champion and role stats cover every stored match, not just the page', async () => {
