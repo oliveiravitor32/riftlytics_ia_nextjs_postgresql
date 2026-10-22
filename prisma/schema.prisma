@@ -153,3 +153,18 @@ model DuoAnalysis {
   @@unique([player1Id, player2Id])
   @@map("duo_analyses")
 }
+
+// AI matchup tips (Gemini), one row per champion pair. The pair is stored in
+// alphabetical order (champA < champB) so A×B and B×A share one answer.
+// Regenerated when expiresAt passes (2 months), on the next request.
+model MatchupTip {
+  champA    String
+  champB    String
+  // [{ aspecto, a, b }]: a = champA's column, b = champB's
+  rows      Json
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@id([champA, champB])
+  @@map("matchup_tips")
+}
