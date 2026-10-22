@@ -219,8 +219,26 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
         <dd className="text-foreground/80">{match.damageShare}</dd>
       </dl>
 
+      {/* Who they faced in lane */}
+      <div
+        className="ml-auto flex flex-col items-center gap-1"
+        title={`Contra ${match.laneOpponent.champion} na rota`}
+      >
+        <Icon
+          src={match.laneOpponent.image}
+          alt={`Oponente de rota: ${match.laneOpponent.champion}`}
+          className="size-12 rounded-full border border-border"
+        />
+        <span
+          aria-hidden="true"
+          className={cn('text-sm font-black tracking-widest', tone.text)}
+        >
+          VS
+        </span>
+      </div>
+
       {/* Both teams; the player in bold */}
-      <div className="ml-auto hidden grid-cols-2 gap-3 sm:grid sm:w-56">
+      <div className="hidden grid-cols-2 gap-3 sm:grid sm:w-56">
         <Team players={blueTeam} playerName={match.playerName} />
         <Team players={redTeam} playerName={match.playerName} />
       </div>

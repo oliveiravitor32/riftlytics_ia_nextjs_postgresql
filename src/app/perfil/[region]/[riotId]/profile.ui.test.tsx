@@ -174,6 +174,12 @@ it('lists the 10 most recent matches', async () => {
   expect(card).toHaveTextContent(`${k} / ${d} / ${a}`);
   expect(card).toHaveTextContent(`${first.killParticipation}%`);
   expect(card).toHaveTextContent(`${first.cs} (${first.csPerMinute})`);
+  // The lane opponent's picture, before the teams
+  expect(
+    within(card).getByRole('img', {
+      name: `Oponente de rota: ${first.laneOpponent.champion}`,
+    })
+  ).toHaveAttribute('src', first.laneOpponent.image);
   expect(within(card).getByText(first.playerName).closest('li')).toHaveClass(
     'font-semibold'
   );
