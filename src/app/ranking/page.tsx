@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Ranking',
-  description: 'Quem está mais na frente no Solo/Duo e na Flex',
+  description: 'Quem está na frente no Solo/Duo e na Flex',
 };
 
 export default async function RankingPage() {
@@ -27,9 +27,7 @@ export default async function RankingPage() {
           >
             Ranking
           </h1>
-          <p className="text-muted-foreground">
-            Quem está mais na frente entre os amigos.
-          </p>
+          <p className="text-muted-foreground">Quem está na frente.</p>
         </header>
         <RankingBoard players={players} topChampions={topChampions} />
       </section>
