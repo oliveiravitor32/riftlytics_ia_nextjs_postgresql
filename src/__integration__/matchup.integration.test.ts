@@ -37,6 +37,7 @@ beforeEach(async () => {
   geminiModels.length = 0;
   geminiFault.next = null;
   geminiFault.once = [];
+  geminiFault.delayMs = 0;
 });
 afterAll(() => {
   geminiFault.next = null;
@@ -127,6 +128,31 @@ it('a stored tip in an older format is generated again', async () => {
 
   expect(matchup.cached).toBe(false);
   expect(matchup.tip).toEqual(fakeMatchup('Akali', 'Katarina'));
+});
+
+it('the same pair asked twice at once (e.g. a page reload) calls the AI once', async () => {
+  geminiFault.delayMs = 1500;
+  const [first, second] = await Promise.all([
+    getMatchup('Katarina', 'Akali'),
+    getMatchup('Akali', 'Katarina'),
+  ]);
+
+  expect(geminiCalls).toHaveLength(1);
+  // The one that waited got the stored answer, in its own column order
+  expect([first.cached, second.cached].sort()).toEqual([false, true]);
+  expect(second.tip.linhas[0].a).toBe(first.tip.linhas[0].b);
+});
+
+it('if the generation someone was waiting for fails, the wait ends with an error', async () => {
+  geminiFault.next = geminiText('resposta inválida');
+
+  const results = await Promise.allSettled([
+    getMatchup('Katarina', 'Akali'),
+    getMatchup('Akali', 'Katarina'),
+  ]);
+
+  expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected']);
+  expect(await prisma.matchupTip.count()).toBe(0);
 });
 
 it('a bad answer from the AI is an error and nothing is stored', async () => {

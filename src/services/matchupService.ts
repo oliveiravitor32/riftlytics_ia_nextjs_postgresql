@@ -6,7 +6,8 @@
 
 import 'server-only';
 import { prisma } from '@/src/lib/db';
-import { AppError } from '@/src/lib/errors';
+import { AppError, ExternalServiceError } from '@/src/lib/errors';
+import { acquireLock, invalidate } from '@/src/lib/cache';
 import {
   MATCHUP_TTL_DAYS,
   orderPair,
@@ -26,6 +27,9 @@ export type Matchup = {
 };
 
 const DAY = 86_400_000;
+// Longer than the slowest Gemini answer (~2 min with retries)
+const GENERATING_LOCK_SECONDS = 150;
+const WAIT_POLL_MS = 1000;
 
 function safeParse(value: unknown): MatchupTip | null {
   try {
@@ -53,19 +57,67 @@ export async function getMatchup(
   }
 
   const { champA, champB, swapped } = orderPair(first, second);
+  const fromDb = await readStored(champA, champB, swapped);
+  if (fromDb) return fromDb;
+
+  // Someone is already generating this pair (another person, or the same one
+  // after a page reload): wait for their answer instead of asking the AI again
+  const lockKey = `matchup-generating:${champA}:${champB}`;
+  const lock = await acquireLock(lockKey, GENERATING_LOCK_SECONDS);
+  if (!lock.acquired) return waitForStored(champA, champB, swapped, lockKey);
+
+  try {
+    return await generate(champA, champB, swapped, beforeGenerate);
+  } finally {
+    await invalidate(lockKey);
+  }
+}
+
+/** The stored tip while valid, or null (none, expired or an older format) */
+async function readStored(
+  champA: string,
+  champB: string,
+  swapped: boolean
+): Promise<Matchup | null> {
   const stored = await prisma.matchupTip.findUnique({
     where: { champA_champB: { champA, champB } },
   });
-  // A stored tip in an older format is regenerated like an expired one
   const storedTip = stored && safeParse(stored.tip);
-  if (stored && storedTip && stored.expiresAt > new Date()) {
-    return {
-      tip: orientTip(storedTip, swapped),
-      createdAt: stored.createdAt.toISOString(),
-      cached: true,
-    };
-  }
+  if (!stored || !storedTip || stored.expiresAt <= new Date()) return null;
+  return {
+    tip: orientTip(storedTip, swapped),
+    createdAt: stored.createdAt.toISOString(),
+    cached: true,
+  };
+}
 
+async function waitForStored(
+  champA: string,
+  champB: string,
+  swapped: boolean,
+  lockKey: string
+): Promise<Matchup> {
+  const deadline = Date.now() + GENERATING_LOCK_SECONDS * 1000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, WAIT_POLL_MS));
+    const ready = await readStored(champA, champB, swapped);
+    if (ready) return ready;
+    // The lock is gone without an answer: that generation failed
+    const stillGenerating = !(await acquireLock(lockKey, 1)).acquired;
+    if (!stillGenerating) {
+      await invalidate(lockKey);
+      break;
+    }
+  }
+  throw new ExternalServiceError('Gemini', 'a geração em andamento falhou');
+}
+
+async function generate(
+  champA: string,
+  champB: string,
+  swapped: boolean,
+  beforeGenerate: () => Promise<void>
+): Promise<Matchup> {
   await beforeGenerate();
   const tip = await generateMatchupTip(champA, champB);
   const now = new Date();

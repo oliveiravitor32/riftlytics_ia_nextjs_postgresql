@@ -3,7 +3,7 @@
  * the real /api/matchup route and database, Gemini answered by the fake.
  */
 
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import MatchupsPage, { metadata } from './page';
 import { renderApp } from '@/jest/render-app';
@@ -15,6 +15,7 @@ import { MATCHUP_ROWS } from '@/src/lib/matchup';
 beforeEach(async () => {
   await prisma.matchupTip.deleteMany();
   geminiFault.next = null;
+  localStorage.clear();
 });
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -128,6 +129,33 @@ it('shows the summary tags and one short action per row for each champion', asyn
       within(rows[i]).getAllByText('Akali', { selector: 'strong' })
     ).toHaveLength(1);
   });
+});
+
+it('leaving the tab and coming back keeps the chosen matchup and its answer', async () => {
+  await pick('Katarina', 'Akali');
+  await screen.findByRole(
+    'table',
+    { name: 'Katarina contra Akali na fase de rotas' },
+    { timeout: RIOT_WAIT_MS }
+  );
+  cleanup(); // went to another page
+
+  renderApp(await MatchupsPage());
+
+  // Restored without clicking anything
+  expect(
+    await screen.findByRole(
+      'table',
+      { name: 'Katarina contra Akali na fase de rotas' },
+      { timeout: RIOT_WAIT_MS }
+    )
+  ).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Seu campeão' })).toHaveValue(
+    'Katarina'
+  );
+  expect(screen.getByRole('combobox', { name: 'Adversário' })).toHaveValue(
+    'Akali'
+  );
 });
 
 it('cannot ask for the same champion twice', async () => {
