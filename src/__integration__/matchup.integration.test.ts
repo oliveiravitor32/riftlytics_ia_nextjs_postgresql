@@ -18,6 +18,7 @@ import {
   geminiCalls,
   geminiFault,
   geminiRateLimited,
+  geminiUnavailable,
   geminiText,
 } from '@/jest/gemini-mock/server';
 
@@ -32,6 +33,7 @@ beforeEach(async () => {
   await prisma.matchupTip.deleteMany();
   geminiCalls.length = 0;
   geminiFault.next = null;
+  geminiFault.once = [];
 });
 afterAll(() => {
   geminiFault.next = null;
@@ -80,6 +82,25 @@ it(`keeps a tip for ${MATCHUP_TTL_DAYS} days, then asks the AI again`, async () 
   expect(
     (await prisma.matchupTip.findFirstOrThrow()).expiresAt.getTime()
   ).toBeGreaterThan(Date.now());
+});
+
+it('an overloaded model (503) is tried again before giving up', async () => {
+  geminiFault.once = [geminiUnavailable(), geminiUnavailable()];
+
+  const res = await call('?a=Katarina&b=Akali');
+
+  expect(res.status).toBe(200);
+  expect(geminiFault.once).toHaveLength(0);
+  expect(await prisma.matchupTip.count()).toBe(1);
+});
+
+it('a model that stays overloaded is a 503 and nothing is stored', async () => {
+  geminiFault.next = geminiUnavailable();
+
+  const res = await call('?a=Katarina&b=Akali');
+
+  expect(res.status).toBe(503);
+  expect(await prisma.matchupTip.count()).toBe(0);
 });
 
 it('a bad answer from the AI is an error and nothing is stored', async () => {

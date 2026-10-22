@@ -27,6 +27,9 @@ const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Alias of the newest Flash model; GEMINI_MODEL pins another one
 const DEFAULT_MODEL = 'gemini-flash-latest';
 const TIMEOUT_MS = 30_000;
+// A 500/503 means the model is overloaded and isn't counted against the
+// quota, so it's worth trying again: waits before the 2nd and 3rd attempt
+const RETRY_DELAYS_MS = [700, 1500];
 
 /** "31s" → 31; Gemini's RetryInfo on a 429 */
 function retryAfterOf(body: GeminiErrorResponse | null): number {
@@ -55,12 +58,20 @@ export async function generateMatchupRows(
     },
   };
 
-  const res = await fetch(`${API_URL}/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
+  const send = () =>
+    fetch(`${API_URL}/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+
+  let res = await send();
+  for (const delay of RETRY_DELAYS_MS) {
+    if (res.status !== 500 && res.status !== 503) break;
+    await new Promise((r) => setTimeout(r, delay));
+    res = await send();
+  }
 
   if (!res.ok) {
     const error = (await res

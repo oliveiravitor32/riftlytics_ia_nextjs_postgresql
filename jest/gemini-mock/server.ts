@@ -16,8 +16,14 @@ import type {
 /** Every call the fake answered (prompt text), for "was the AI called?" */
 export const geminiCalls: string[] = [];
 
-/** Set by a test to make the next calls fail; reset it after */
-export const geminiFault: { next: Response | null } = { next: null };
+/**
+ * Set by a test: `next` answers every call until reset; `once` answers one
+ * call each, in order (e.g. two 503s, then the normal answer)
+ */
+export const geminiFault: { next: Response | null; once: Response[] } = {
+  next: null,
+  once: [],
+};
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -41,6 +47,18 @@ export function geminiRateLimited(retryDelay = '31s'): Response {
     },
   };
   return json(body, 429);
+}
+
+/** 503 UNAVAILABLE: the model is overloaded (happens on the free tier) */
+export function geminiUnavailable(): Response {
+  const body: GeminiErrorResponse = {
+    error: {
+      code: 503,
+      message: 'The model is overloaded. Please try again later.',
+      status: 'UNAVAILABLE',
+    },
+  };
+  return json(body, 503);
 }
 
 export function geminiText(text: string): Response {
@@ -74,6 +92,8 @@ export function withGeminiMock(realFetch: typeof fetch): typeof fetch {
         403
       );
     }
+    const once = geminiFault.once.shift();
+    if (once) return once;
     if (geminiFault.next) return geminiFault.next.clone();
 
     const request = JSON.parse(String(init?.body)) as GenerateContentRequest;
