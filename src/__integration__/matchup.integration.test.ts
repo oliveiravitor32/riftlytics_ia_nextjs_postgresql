@@ -17,6 +17,7 @@ import {
   fakeTip,
   geminiCalls,
   geminiFault,
+  geminiModels,
   geminiRateLimited,
   geminiUnavailable,
   geminiText,
@@ -32,6 +33,7 @@ const call = (query: string, ip = '10.0.0.1') =>
 beforeEach(async () => {
   await prisma.matchupTip.deleteMany();
   geminiCalls.length = 0;
+  geminiModels.length = 0;
   geminiFault.next = null;
   geminiFault.once = [];
 });
@@ -91,6 +93,8 @@ it('an overloaded model (503) is tried again before giving up', async () => {
 
   expect(res.status).toBe(200);
   expect(geminiFault.once).toHaveLength(0);
+  // The last attempt went to the lighter, less busy model
+  expect(geminiModels.at(-1)).toBe('gemini-flash-lite-latest');
   expect(await prisma.matchupTip.count()).toBe(1);
 });
 

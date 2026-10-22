@@ -15,6 +15,8 @@ import type {
 
 /** Every call the fake answered (prompt text), for "was the AI called?" */
 export const geminiCalls: string[] = [];
+/** Model of every request, failed ones included */
+export const geminiModels: string[] = [];
 
 /**
  * Set by a test: `next` answers every call until reset; `once` answers one
@@ -92,6 +94,7 @@ export function withGeminiMock(realFetch: typeof fetch): typeof fetch {
         403
       );
     }
+    geminiModels.push(url.pathname.split('/').at(-1)!.split(':')[0]);
     const once = geminiFault.once.shift();
     if (once) return once;
     if (geminiFault.next) return geminiFault.next.clone();

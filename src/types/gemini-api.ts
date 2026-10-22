@@ -22,6 +22,8 @@ export interface GenerateContentRequest {
     responseMimeType?: 'application/json' | 'text/plain';
     responseSchema?: unknown;
     temperature?: number;
+    /** Gemini 3: how much the model reasons first (minimal | low | high) */
+    thinkingConfig?: { thinkingLevel?: 'minimal' | 'low' | 'medium' | 'high' };
   };
 }
 

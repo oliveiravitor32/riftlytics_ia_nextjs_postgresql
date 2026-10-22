@@ -26,7 +26,10 @@ import type {
 const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 // Alias of the newest Flash model; GEMINI_MODEL pins another one
 const DEFAULT_MODEL = 'gemini-flash-latest';
-const TIMEOUT_MS = 30_000;
+// A real answer takes ~15 s; more when Google is busy
+const TIMEOUT_MS = 45_000;
+// Last attempt after overloads: the lighter model is usually less busy
+const FALLBACK_MODEL = 'gemini-flash-lite-latest';
 // A 500/503 means the model is overloaded and isn't counted against the
 // quota, so it's worth trying again: waits before the 2nd and 3rd attempt
 const RETRY_DELAYS_MS = [700, 1500];
@@ -55,11 +58,13 @@ export async function generateMatchupRows(
       responseMimeType: 'application/json',
       responseSchema: MATCHUP_RESPONSE_SCHEMA,
       temperature: 0.4,
+      // Short tables don't need long reasoning; keeps the answer fast
+      thinkingConfig: { thinkingLevel: 'low' },
     },
   };
 
-  const send = () =>
-    fetch(`${API_URL}/${model}:generateContent`, {
+  const send = (useModel = model) =>
+    fetch(`${API_URL}/${useModel}:generateContent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify(body),
@@ -67,10 +72,10 @@ export async function generateMatchupRows(
     });
 
   let res = await send();
-  for (const delay of RETRY_DELAYS_MS) {
+  for (const [i, delay] of RETRY_DELAYS_MS.entries()) {
     if (res.status !== 500 && res.status !== 503) break;
     await new Promise((r) => setTimeout(r, delay));
-    res = await send();
+    res = await send(i === RETRY_DELAYS_MS.length - 1 ? FALLBACK_MODEL : model);
   }
 
   if (!res.ok) {
