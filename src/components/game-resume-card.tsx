@@ -52,11 +52,13 @@ const TONES = {
     label: 'Vitória',
     card: 'border-l-blue-500 bg-blue-500/10',
     text: 'text-blue-600 dark:text-blue-400',
+    slot: 'bg-blue-500/15',
   },
   loss: {
     label: 'Derrota',
     card: 'border-l-rose-500 bg-rose-500/10',
     text: 'text-rose-600 dark:text-rose-400',
+    slot: 'bg-rose-500/15',
   },
 } as const;
 
@@ -157,13 +159,13 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
             <Icon
               src={match.runes.keystone.image}
               alt={match.runes.keystone.name}
-              className="size-[22px] rounded-full bg-black/60"
+              className="size-[22px] rounded-full bg-black/60 sm:size-7"
             />
             {match.runes.secondaryTree ? (
               <Icon
                 src={match.runes.secondaryTree.image}
                 alt={match.runes.secondaryTree.name}
-                className="size-[22px] p-1"
+                className="size-[22px] p-1 sm:size-7 sm:p-0.5"
               />
             ) : null}
           </div>
@@ -181,7 +183,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
             <span
               key={`vazio-${i}`}
               aria-hidden="true"
-              className="size-[22px] rounded-md border border-dashed border-border"
+              className={cn('size-[22px] rounded-md', tone.slot)}
             />
           ))}
           {match.trinket ? (
@@ -239,8 +241,9 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
         </span>
       </div>
 
-      {/* Both teams; the player in bold */}
-      <div className="hidden grid-cols-2 gap-3 sm:grid sm:w-56">
+      {/* Both teams; the player in bold. Beside the stats on desktop, below
+          them on a lighter band on phones */}
+      <div className="grid w-full grid-cols-2 gap-3 rounded-md bg-foreground/5 p-2 sm:w-56 sm:bg-transparent sm:p-0">
         <Team players={blueTeam} playerName={match.playerName} />
         <Team players={redTeam} playerName={match.playerName} />
       </div>
