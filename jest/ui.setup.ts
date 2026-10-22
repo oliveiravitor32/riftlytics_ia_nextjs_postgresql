@@ -2,6 +2,7 @@ import '@testing-library/jest-dom';
 import { randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { configureRiotForTests } from './riot-env';
+import { withGeminiMock } from './gemini-mock/server';
 import { withRiotMock } from './riot-mock/server';
 
 // Same real credentials as the integration suite (.env.local, local only)
@@ -17,8 +18,10 @@ process.env.LOG_LEVEL = 'error';
 // only applies if a file is run some other way (never the production prefix)
 process.env.CACHE_PREFIX ??= `test:${randomUUID().slice(0, 8)}:`;
 configureRiotForTests();
+// Never the real key: a test can't spend the free Gemini quota
+process.env.GEMINI_API_KEY = 'mock';
 // Server code's network calls (bridge fallback): Riot answers are mocked
-globalThis.__nodeFetch = withRiotMock(globalThis.__nodeFetch);
+globalThis.__nodeFetch = withGeminiMock(withRiotMock(globalThis.__nodeFetch));
 
 // Browser APIs jsdom lacks (environment gaps, not app behavior):
 // recharts' ResponsiveContainer measures itself with ResizeObserver

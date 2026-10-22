@@ -170,6 +170,7 @@ Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 - **PlayerMatch** (`player_matches`): a group member's line in a match (`playedAt`, `queueId`, `championName`, `position`, `win`, K/D/A); every group member in a stored match gets one. Profile lists and stats read from here.
 - **LevelSnapshot** (`level_snapshots`): summoner level per player and game day, saved with the PDL snapshot; feeds the daily summary's countdown to level 30.
 - **SummarySent** (`summary_sent`): game days whose summary was already sent; `bot/send.mjs` skips a day found here (two triggers, one message).
+- **MatchupTip** (`matchup_tips`): AI lane tips per champion pair (alphabetical `champA`/`champB`, so A×B and B×A share a row), `rows` JSON, `expiresAt` = 2 months; regenerated on the next request after that.
 - **BotSession** (`bot_session`): WhatsApp bot session (Baileys auth state), one encrypted row per key; only `bot/` reads it.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
@@ -208,6 +209,8 @@ INNGEST_EVENT_KEY=               # For background jobs (Phase 2)
 INNGEST_SIGNING_KEY=
 
 OPENAI_API_KEY=                   # For Phase 3 (AI analysis)
+GEMINI_API_KEY=                   # Google AI Studio (free tier): matchup tips
+GEMINI_MODEL=                     # optional, default gemini-flash-latest
 ```
 
 ### API Endpoints
@@ -218,6 +221,7 @@ GET    /api/rank/[summonerName]       - Rank only (ranking page); same 10-min ca
 GET    /api/matches/[summonerName]    - Paginated match history of a group player, from the DB (?start, ?count)
 POST   /api/refresh/[summonerName]    - Forced reload of a group player: rank, today's PDL and new matches (1 per player / 2 min, 429 + Retry-After)
 GET    /api/cron/fechamento           - Daily close: final PDL snapshot + new matches (GitHub Actions, Bearer CRON_SECRET)
+GET    /api/matchup?a=&b=          - Lane tips for two champions (ids = Riot championName): DB first, else Gemini (free tier); 10 new pairs/hour per IP
 GET    /api/resumo                    - Daily WhatsApp summary text, ?dia=AAAA-MM-DD (Bearer CRON_SECRET; null on a quiet day)
 ```
 
@@ -260,6 +264,7 @@ TDD, with tests that run the **real application**: nothing of ours is mocked (ro
 - **Riot answers are mocked** (`jest/riot-mock`): the Riot API is outside our control, so integration and ui runs answer `*.riotgames.com` from a fake, deterministic world built on the documented response interfaces in `src/types/riot-api.ts` (invented players `Alfa#TST`, `Bravo#TST`, `Charlie Delta#TST2`, `Echo#TST`, plus `Forasteiro#FORA` who exists on Riot but isn't in the group). Same paths, query params (`start`, `count` ≤ 100, `endTime`), status codes and JSON shapes as Riot. A full run takes about 1.5 min and spends no Riot quota.
 - `npm run test:riot`: contract check against the **real** Riot API (`*.live.test.ts`, ~6 requests): the real answers still match our interfaces and Zod schemas. It already caught one: `league-v4` doesn't send the documented `leagueId`.
 - **Test database**: every run starts with a clean Postgres schema `test` in the same Supabase database (`jest/global-setup.ts`: migrate, empty, seed the mock group). Production data (`public`) is never touched. Files run in alphabetical order (`jest/sequencer.js`).
+- **Gemini is mocked too** (`jest/gemini-mock`, on `src/types/gemini-api.ts`): the free tier has few requests, so no test ever calls it (`GEMINI_API_KEY` is forced to `mock`); tests fake its 429 and bad answers with `geminiFault`.
 - Also faked: Riot 429/5xx/timeouts (tests replace `fetch` themselves) and the clock where needed.
 - Expected values come from the app's own helpers/constants (e.g. `compareRank`, `formatTier`), never hardcoded copies.
 - Integration and ui tests need `.env.local` (`DATABASE_URL`, `DIRECT_URL`, `CRON_SECRET`, `UPSTASH_REDIS_REST_*`; `RIOT_API_KEY` only for `test:riot`) and use their own Redis key prefix, deleted at the end of the run.
