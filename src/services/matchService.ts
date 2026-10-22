@@ -298,8 +298,12 @@ export type ChampionStats = {
   assists: number;
 };
 
+const LANES = new Set(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY']);
+
 export type MatchStats = {
   total: number;
+  /** Games with a lane (Arena and other modes without one are left out) */
+  roleTotal: number;
   champions: ChampionStats[];
   roles: { role: string; games: number }[];
 };
@@ -338,12 +342,16 @@ export async function getMatchStats(riotId: string): Promise<MatchStats> {
     c.deaths += r.deaths;
     c.assists += r.assists;
     champions.set(r.championName, c);
-    const role = roleLabel(r.position);
-    roles.set(role, (roles.get(role) ?? 0) + 1);
+    // Arena & co. have no lane (Riot sends "Invalid" or ""): not a role
+    if (LANES.has(r.position)) {
+      const role = roleLabel(r.position);
+      roles.set(role, (roles.get(role) ?? 0) + 1);
+    }
   }
 
   return {
     total: rows.length,
+    roleTotal: [...roles.values()].reduce((sum, n) => sum + n, 0),
     champions: [...champions.values()]
       .sort((a, b) => b.games - a.games)
       .slice(0, 5),

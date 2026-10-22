@@ -184,7 +184,7 @@ it('champion and role stats cover every stored match, not just the page', async 
   const stats = await getMatchStats(RIOT_ID);
 
   expect(
-    screen.getByText(`Com base nas ${stats.total} partidas guardadas`)
+    screen.getByText(`Com base nas ${stats.roleTotal} partidas com rota`)
   ).toBeInTheDocument();
 
   // The most played champion is listed first, with its stored game count
