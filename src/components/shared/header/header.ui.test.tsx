@@ -50,16 +50,29 @@ describe('navigation', () => {
 });
 
 describe('theme selector', () => {
-  it('switches between system, light and dark', async () => {
-    const user = userEvent.setup();
+  it('starts dark, whatever the system theme, until someone picks another', async () => {
     renderApp(<Header />);
     const group = screen.getByRole('radiogroup', { name: 'Tema de cores' });
 
     await waitFor(() =>
       expect(
-        within(group).getByRole('radio', { name: 'Tema do sistema' })
+        within(group).getByRole('radio', { name: 'Tema escuro' })
       ).toHaveAttribute('aria-checked', 'true')
     );
+    expect(document.documentElement).toHaveClass('dark');
+  });
+
+  it('switches between system, light and dark', async () => {
+    const user = userEvent.setup();
+    renderApp(<Header />);
+    const group = screen.getByRole('radiogroup', { name: 'Tema de cores' });
+
+    await user.click(
+      within(group).getByRole('radio', { name: 'Tema do sistema' })
+    );
+    expect(
+      within(group).getByRole('radio', { name: 'Tema do sistema' })
+    ).toHaveAttribute('aria-checked', 'true');
 
     await user.click(within(group).getByRole('radio', { name: 'Tema escuro' }));
     expect(document.documentElement).toHaveClass('dark');

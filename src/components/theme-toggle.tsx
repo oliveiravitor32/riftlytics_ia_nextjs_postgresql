@@ -21,7 +21,7 @@ export default function ThemeToggle() {
   }, []);
 
   // Same footprint before mount so the header doesn't shift
-  // (the ThemeProvider always resolves a theme, 'system' by default)
+  // (the ThemeProvider always resolves a theme, 'dark' by default)
   const current = mounted ? theme : null;
 
   return (
