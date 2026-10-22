@@ -33,6 +33,8 @@ export type GameResumeMatch = {
   runes: {
     primaryTree: { name: string; image: string };
     keystone: { name: string; image: string };
+    /** Shown beside the keystone; null when the match has no runes */
+    secondaryTree: { name: string; image: string } | null;
   };
   allies: { name: string; champion: string; image: string }[];
   enemies: { name: string; champion: string; image: string }[];
@@ -50,13 +52,11 @@ const TONES = {
     label: 'Vitória',
     card: 'border-l-blue-500 bg-blue-500/10',
     text: 'text-blue-600 dark:text-blue-400',
-    slot: 'bg-blue-500/15',
   },
   loss: {
     label: 'Derrota',
     card: 'border-l-rose-500 bg-rose-500/10',
     text: 'text-rose-600 dark:text-rose-400',
-    slot: 'bg-rose-500/15',
   },
 } as const;
 
@@ -159,11 +159,13 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
               alt={match.runes.keystone.name}
               className="size-[22px] rounded-full bg-black/60"
             />
-            <Icon
-              src={match.runes.primaryTree.image}
-              alt={match.runes.primaryTree.name}
-              className="size-[22px] p-0.5"
-            />
+            {match.runes.secondaryTree ? (
+              <Icon
+                src={match.runes.secondaryTree.image}
+                alt={match.runes.secondaryTree.name}
+                className="size-[22px] p-1"
+              />
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-0.5">
@@ -179,7 +181,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
             <span
               key={`vazio-${i}`}
               aria-hidden="true"
-              className={cn('size-[22px] rounded-md', tone.slot)}
+              className="size-[22px] rounded-md border border-dashed border-border"
             />
           ))}
           {match.trinket ? (

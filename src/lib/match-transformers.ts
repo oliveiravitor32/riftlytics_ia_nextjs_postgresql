@@ -297,6 +297,8 @@ export function buildGameResumeMatch(
   const styles = player.perks?.styles || [];
   const primaryStyle = styles[0]?.style || 8000;
   const primarySelection = styles[0]?.selections?.[0]?.perk;
+  // The keystone already tells the primary tree; the secondary is news
+  const secondaryStyle = styles[1]?.style;
   const teamDamage = totalDamageForTeam(match.info.participants, teamId);
   const damageShare =
     teamDamage > 0
@@ -351,6 +353,10 @@ export function buildGameResumeMatch(
     runes: {
       primaryTree: runeTreeFromId(primaryStyle),
       keystone: keystoneFromId(primarySelection, primaryStyle),
+      secondaryTree:
+        secondaryStyle && runeTreeImages[secondaryStyle]
+          ? runeTreeImages[secondaryStyle]
+          : null,
     },
     allies,
     enemies,

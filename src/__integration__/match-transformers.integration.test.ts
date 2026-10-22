@@ -170,6 +170,18 @@ describe('variations of the real payload', () => {
       /perk-images\/Styles\/7201_Precision\.png$/
     );
     expect(card.runes.keystone.name).toBe('Precision');
+    expect(card.runes.secondaryTree).toBeNull();
+  });
+
+  it('runes: the keystone and the secondary tree (the primary is implied by the keystone)', () => {
+    const card = build();
+    const sub = me.perks!.styles[1].style;
+
+    expect(sub).toBe(8300);
+    expect(card.runes.secondaryTree).toEqual({
+      name: 'Inspiration',
+      image: expect.stringMatching(/perk-images\/Styles\/7203_Whimsy\.png$/),
+    });
   });
 
   it('a team with no damage shows 0%', () => {
