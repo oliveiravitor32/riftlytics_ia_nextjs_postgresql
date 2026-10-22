@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { ChampionCombobox } from './champion-combobox';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { useMatchupQuery } from '@/src/queries/useMatchupQuery';
 import type { ChampionOption } from '@/src/services/dataDragonService';
@@ -149,41 +150,6 @@ function MatchupResult({
   );
 }
 
-function ChampionSelect({
-  id,
-  label,
-  value,
-  onChange,
-  champions,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  champions: ChampionOption[];
-}) {
-  return (
-    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm text-muted-foreground">
-        {label}
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-10 rounded-lg border border-border bg-card px-3 text-base"
-      >
-        <option value="">Escolha…</option>
-        {champions.map((c) => (
-          <option key={c.id} value={c.id}>
-            {c.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 export function MatchupExplorer({
   champions,
 }: {
@@ -206,22 +172,27 @@ export function MatchupExplorer({
           setPair({ a, b });
         }}
       >
-        <ChampionSelect
+        <ChampionCombobox
           id="campeao-a"
           label="Seu campeão"
           value={a}
           onChange={setA}
           champions={champions}
         />
-        <span className="hidden pb-2 text-muted-foreground sm:block">vs</span>
-        <ChampionSelect
+        <span className="hidden pb-3 text-muted-foreground sm:block">vs</span>
+        <ChampionCombobox
           id="campeao-b"
           label="Adversário"
           value={b}
           onChange={setB}
           champions={champions}
         />
-        <Button type="submit" disabled={!a || !b || a === b}>
+        <Button
+          type="submit"
+          size="lg"
+          className="h-12"
+          disabled={!a || !b || a === b}
+        >
           Ver dicas
         </Button>
       </form>

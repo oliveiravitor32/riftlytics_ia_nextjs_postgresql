@@ -17,13 +17,83 @@ beforeEach(async () => {
   geminiFault.next = null;
 });
 
+type User = ReturnType<typeof userEvent.setup>;
+
+/** Types part of the name in the search box and clicks the champion */
+async function choose(user: User, label: string, name: string) {
+  const box = screen.getByRole('combobox', { name: label });
+  await user.clear(box);
+  await user.type(box, name.slice(0, 3));
+  await user.click(screen.getByRole('option', { name }));
+}
+
 async function pick(a: string, b: string) {
   const user = userEvent.setup();
   renderApp(await MatchupsPage());
-  await user.selectOptions(screen.getByLabelText('Seu campeão'), a);
-  await user.selectOptions(screen.getByLabelText('Adversário'), b);
+  await choose(user, 'Seu campeão', a);
+  await choose(user, 'Adversário', b);
   await user.click(screen.getByRole('button', { name: 'Ver dicas' }));
 }
+
+describe('champion search', () => {
+  it('filters as you type, ignoring accents and case, each option with its picture', async () => {
+    const user = userEvent.setup();
+    renderApp(await MatchupsPage());
+    const box = screen.getByRole('combobox', { name: 'Seu campeão' });
+
+    await user.type(box, 'kata');
+    const options = screen.getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual(['Katarina']);
+    expect(options[0].querySelector('img')).toHaveAttribute(
+      'src',
+      expect.stringContaining('/champion/Katarina.png')
+    );
+
+    await user.clear(box);
+    await user.type(box, 'RENATA GL');
+    expect(screen.getAllByRole('option')[0]).toHaveTextContent('Renata Glasc');
+  });
+
+  it('an empty box lists every champion, not just the first ones', async () => {
+    const user = userEvent.setup();
+    const page = await MatchupsPage();
+    renderApp(page);
+
+    await user.click(screen.getByRole('combobox', { name: 'Seu campeão' }));
+
+    const names = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(names.length).toBeGreaterThan(150);
+    expect(names).toContain('Zyra');
+  });
+
+  it('picks with the keyboard and shows the chosen picture in the box', async () => {
+    const user = userEvent.setup();
+    renderApp(await MatchupsPage());
+    const box = screen.getByRole('combobox', { name: 'Seu campeão' });
+
+    await user.type(box, 'akal');
+    await user.keyboard('{ArrowDown}{Enter}');
+
+    expect(box).toHaveValue('Akali');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('campeao-a-foto').getAttribute('src')).toContain(
+      '/champion/Akali.png'
+    );
+  });
+
+  it('a name that matches nothing says so and chooses nobody', async () => {
+    const user = userEvent.setup();
+    renderApp(await MatchupsPage());
+
+    await user.type(
+      screen.getByRole('combobox', { name: 'Seu campeão' }),
+      'xyzw'
+    );
+
+    expect(screen.getByText('Nenhum campeão encontrado')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ver dicas' })).toBeDisabled();
+  });
+});
 
 it('shows the summary tags and one short action per row for each champion', async () => {
   await pick('Katarina', 'Akali');
@@ -63,8 +133,8 @@ it('shows the summary tags and one short action per row for each champion', asyn
 it('cannot ask for the same champion twice', async () => {
   const user = userEvent.setup();
   renderApp(await MatchupsPage());
-  await user.selectOptions(screen.getByLabelText('Seu campeão'), 'Katarina');
-  await user.selectOptions(screen.getByLabelText('Adversário'), 'Katarina');
+  await choose(user, 'Seu campeão', 'Katarina');
+  await choose(user, 'Adversário', 'Katarina');
 
   expect(screen.getByRole('button', { name: 'Ver dicas' })).toBeDisabled();
 });
