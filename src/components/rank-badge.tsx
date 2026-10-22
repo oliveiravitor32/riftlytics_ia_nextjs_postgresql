@@ -24,12 +24,12 @@ export function RankBadge({
     <div className={cn('flex flex-col items-end gap-1', className)}>
       <div
         className={cn(
-          'rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-foreground'
+          'whitespace-nowrap rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-foreground sm:px-3 sm:py-1 sm:text-xs sm:tracking-[0.18em]'
         )}
       >
         {formatTier(tier, rank)}
       </div>
-      <div className="text-xs text-muted-foreground">
+      <div className="text-[11px] text-muted-foreground sm:text-xs">
         {leaguePoints} <span className="text-foreground/70">PDL</span>
       </div>
     </div>

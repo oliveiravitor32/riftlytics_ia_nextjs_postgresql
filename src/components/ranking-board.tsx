@@ -7,7 +7,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Crown, Loader2, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { TrackedPlayer } from '@/src/services/playerService';
 import type { TopChampion } from '@/src/services/topChampionsService';
@@ -39,14 +39,17 @@ const PODIUM_STYLES = [
   {
     row: 'border-primary/70 bg-linear-to-r from-primary/20 via-card to-card',
     badge: 'border-primary bg-primary text-primary-foreground',
+    crown: 'fill-primary text-primary',
   },
   {
     row: 'border-accent/60 bg-linear-to-r from-accent/15 via-card to-card',
     badge: 'border-accent bg-accent text-accent-foreground',
+    crown: 'fill-accent text-accent',
   },
   {
     row: 'border-[#d9d4ce]/50 bg-linear-to-r from-[#d9d4ce]/10 via-card to-card',
     badge: 'border-[#d9d4ce] bg-[#d9d4ce] text-[#171513]',
+    crown: 'fill-[#d9d4ce] text-[#d9d4ce]',
   },
 ];
 
@@ -259,7 +262,7 @@ export function RankingBoard({
           </p>
         )}
 
-        <ol className="space-y-3">
+        <ol className="space-y-6 pt-4">
           {ranked.map((row, i) => {
             const { tier, rank, leaguePoints, wins, losses } = row.entry!;
             const total = wins + losses;
@@ -269,20 +272,35 @@ export function RankingBoard({
               <li
                 key={row.riotId}
                 className={cn(
-                  'flex items-center gap-4 rounded-md border border-border bg-card p-4 shadow-card',
+                  'relative flex items-center gap-2 rounded-md border border-border bg-card p-3 shadow-card sm:gap-4 sm:p-4',
                   podium?.row
                 )}
               >
+                {/* Position on the top-left corner, sticking out of the card;
+                    a crown over the top 3 */}
                 <span
                   className={cn(
-                    'flex size-8 shrink-0 items-center justify-center rounded-full border border-border text-sm font-semibold',
+                    'absolute -left-3 -top-3 flex size-8 items-center justify-center rounded-full border border-border bg-card text-sm font-semibold shadow-card',
                     podium?.badge
                   )}
                   aria-label={`${i + 1}º lugar`}
                 >
+                  {podium ? (
+                    <Crown
+                      aria-hidden="true"
+                      className={cn(
+                        'absolute -top-4 size-5 -rotate-12',
+                        podium.crown
+                      )}
+                    />
+                  ) : null}
                   {i + 1}
                 </span>
-                <PlayerAvatar name={row.name} src={row.avatarUrl} />
+                <PlayerAvatar
+                  name={row.name}
+                  src={row.avatarUrl}
+                  className="size-8 sm:size-10"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-semibold">
                     <Link
@@ -292,22 +310,27 @@ export function RankingBoard({
                       {row.name}
                     </Link>
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {wins}V {losses}D · {winRate.toFixed(1)}% de vitórias
+                  <p className="truncate text-xs text-muted-foreground">
+                    {wins}V {losses}D · {winRate.toFixed(1)}%
+                    <span className="hidden sm:inline"> de vitórias</span>
                   </p>
                 </div>
                 <div className="hidden sm:block">
                   <TopChampions champions={row.champions} />
                 </div>
-                <div className="w-40 shrink-0 text-right">
-                  <p className="text-sm font-semibold uppercase tracking-wider">
+                <div className="shrink-0 text-right sm:w-40">
+                  <p className="whitespace-nowrap text-xs font-semibold uppercase tracking-wider sm:text-sm">
                     {formatTier(tier, rank)}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {leaguePoints} PDL
                   </p>
                 </div>
-                <RankEmblem tier={tier} rank={rank} className="size-14" />
+                <RankEmblem
+                  tier={tier}
+                  rank={rank}
+                  className="size-10 sm:size-14"
+                />
               </li>
             );
           })}

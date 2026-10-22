@@ -15,7 +15,7 @@ export default function NavMenu() {
 
   return (
     <nav aria-label="Navegação principal">
-      <ul className="flex items-center gap-4">
+      <ul className="flex items-center gap-4 whitespace-nowrap">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (

@@ -98,11 +98,15 @@ export function ProfileCard({
     <Card className="gap-0 py-0 transition-colors duration-200 hover:border-primary/40">
       <article className="divide-y divide-border">
         {/* Row 1: identity + rank */}
-        <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <PlayerAvatar name={profile.name} src={avatarUrl} />
-            <div>
-              <h3 className="text-base font-semibold tracking-tight text-foreground">
+        <header className="flex items-center justify-between gap-2 px-3 py-3 sm:gap-3 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            <PlayerAvatar
+              name={profile.name}
+              src={avatarUrl}
+              className="size-8 sm:size-10"
+            />
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold tracking-tight text-foreground sm:text-base">
                 <Link
                   href={profileHref(region, gameName, tagLine)}
                   className="hover:text-primary hover:underline"
@@ -111,15 +115,15 @@ export function ProfileCard({
                 </Link>
               </h3>
               {/* Fixed-width level keeps every card's champions aligned */}
-              <div className="mt-0.5 flex items-center gap-2">
-                <p className="w-16 text-xs text-muted-foreground">
+              <div className="mt-0.5 flex items-center gap-1.5 sm:gap-2">
+                <p className="w-12 shrink-0 text-[11px] text-muted-foreground sm:w-16 sm:text-xs">
                   Nível {profile.summonerLevel}
                 </p>
                 <TopChampions champions={topChampions} />
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             {rankInfo ? (
               <RankBadge
                 tier={rankInfo.tier}
@@ -127,14 +131,17 @@ export function ProfileCard({
                 leaguePoints={rankInfo.leaguePoints}
               />
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Ainda sem ranque no Solo/Duo
+              <p className="text-xs text-muted-foreground sm:text-sm">
+                <span className="sm:hidden">Sem ranque</span>
+                <span className="hidden sm:inline">
+                  Ainda sem ranque no Solo/Duo
+                </span>
               </p>
             )}
             <RankEmblem
               tier={rankInfo?.tier ?? null}
               rank={rankInfo?.rank}
-              className="size-14"
+              className="size-10 sm:size-14"
             />
           </div>
         </header>

@@ -7,7 +7,7 @@ export function TopChampions({ champions }: { champions: TopChampion[] }) {
   return (
     <ul
       aria-label="Mais jogados nas últimas 100 partidas"
-      className="flex items-center gap-1.5"
+      className="flex items-center gap-1 sm:gap-1.5"
     >
       {champions.map((c) => (
         <li
@@ -18,7 +18,7 @@ export function TopChampions({ champions }: { champions: TopChampion[] }) {
           <img
             src={c.image}
             alt={c.champion}
-            className="size-8 rounded-full border border-border object-cover"
+            className="size-6 rounded-full border border-border object-cover sm:size-8"
           />
         </li>
       ))}
