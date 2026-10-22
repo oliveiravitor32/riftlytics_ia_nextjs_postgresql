@@ -98,7 +98,7 @@ function Team({
               : 'text-muted-foreground'
           )}
         >
-          <Icon src={p.image} alt={p.champion} className="size-4 rounded-sm" />
+          <Icon src={p.image} alt={p.champion} className="size-4 rounded-md" />
           <span className="truncate">{p.name}</span>
         </li>
       ))}
@@ -119,7 +119,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
     <article
       aria-label={`${tone.label} de ${match.champion}`}
       className={cn(
-        'flex w-full flex-wrap items-center gap-x-5 gap-y-3 rounded-xl border border-l-4 border-border px-4 py-3 shadow-card',
+        'flex w-full flex-wrap items-center gap-x-5 gap-y-3 rounded-md border border-l-4 border-border px-4 py-3 shadow-card',
         tone.card
       )}
     >
@@ -141,7 +141,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
               alt={match.champion}
               className="size-12 rounded-full"
             />
-            <span className="absolute -bottom-1 -right-1 rounded-full bg-foreground px-1.5 text-[11px] font-semibold text-background">
+            <span className="absolute -bottom-1 -right-1 rounded-md bg-foreground px-1.5 text-[11px] font-semibold text-background">
               {match.championLevel}
             </span>
           </div>
@@ -201,7 +201,7 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
         </p>
         <p className="text-xs text-muted-foreground">{ratio} KDA</p>
         {match.multiKill ? (
-          <span className="w-fit rounded-full bg-rose-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+          <span className="w-fit rounded-md bg-rose-600 px-2 py-0.5 text-[11px] font-semibold text-white">
             {match.multiKill}
           </span>
         ) : null}

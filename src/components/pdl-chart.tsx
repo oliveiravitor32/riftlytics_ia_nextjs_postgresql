@@ -36,7 +36,7 @@ export function PdlChart({
     return (
       <div
         style={{ height }}
-        className="flex items-center justify-center rounded-lg border border-dashed border-border px-4 text-center text-muted-foreground"
+        className="flex items-center justify-center rounded-md border border-dashed border-border px-4 text-center text-muted-foreground"
       >
         Ainda não há registros de PDL suficientes (um por dia)
       </div>

@@ -159,7 +159,7 @@ export function RankingBoard({
       {isRateLimited && (
         <div
           role="alert"
-          className="mb-6 flex gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
+          className="mb-6 flex gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
         >
           <AlertTriangle
             className="mt-0.5 size-5 shrink-0 opacity-80"
@@ -181,7 +181,7 @@ export function RankingBoard({
         <div
           role="tablist"
           aria-label="Fila ranqueada"
-          className="inline-flex gap-1 rounded-full border border-border bg-card/80 p-1"
+          className="inline-flex gap-1 rounded-md border border-border bg-card/80 p-1"
         >
           {TABS.map((t, i) => {
             const selected = t.id === activeTab;
@@ -200,7 +200,7 @@ export function RankingBoard({
                 onClick={() => setActiveTab(t.id)}
                 onKeyDown={(e) => handleKeyDown(e, i)}
                 className={cn(
-                  'rounded-full px-4 py-2 text-sm font-medium transition-colors',
+                  'rounded-md px-4 py-2 text-sm font-medium transition-colors',
                   selected
                     ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:text-foreground'
@@ -228,7 +228,7 @@ export function RankingBoard({
             variant="outline"
             onClick={handleRefresh}
             disabled={isRefreshing || isLoading || isRateLimited}
-            className="rounded-full"
+            className="rounded-md"
           >
             <RefreshCw
               className={cn('size-4', isRefreshing && 'animate-spin')}
@@ -268,7 +268,7 @@ export function RankingBoard({
               <li
                 key={row.riotId}
                 className={cn(
-                  'flex items-center gap-4 rounded-xl border border-border bg-card p-4 shadow-card',
+                  'flex items-center gap-4 rounded-md border border-border bg-card p-4 shadow-card',
                   podium?.row
                 )}
               >
@@ -312,7 +312,7 @@ export function RankingBoard({
         </ol>
 
         {!isLoading && ranked.length === 0 && (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
+          <p className="rounded-md border border-dashed border-border p-6 text-center text-muted-foreground">
             Ninguém está ranqueado na {tab.label} ainda.
           </p>
         )}
@@ -329,7 +329,7 @@ export function RankingBoard({
               {unranked.map((row) => (
                 <li
                   key={row.riotId}
-                  className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground"
+                  className="rounded-md border border-border px-3 py-1 text-xs text-muted-foreground"
                 >
                   {row.name}
                   {row.isError &&

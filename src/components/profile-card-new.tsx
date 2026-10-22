@@ -161,7 +161,7 @@ export function ProfileCard({
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Histórico de PDL
             </span>
-            <span className="flex items-center gap-1 rounded-full border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors group-hover:border-primary group-hover:text-primary">
+            <span className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition-colors group-hover:border-primary group-hover:text-primary">
               <span className="group-open:hidden">Mostrar</span>
               <span className="hidden group-open:inline">Ocultar</span>
               <ChevronDown

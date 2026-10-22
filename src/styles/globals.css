@@ -141,6 +141,27 @@
   html {
     @apply font-sans;
   }
+  /* Tailwind v4 dropped the pointer cursor on buttons: everything clickable
+     gets it back; disabled controls show they can't be used */
+  a[href],
+  button,
+  select,
+  summary,
+  label[for],
+  [role='button'],
+  [role='tab'],
+  [role='radio'],
+  [role='checkbox'],
+  [role='menuitem'],
+  [role='option'],
+  input[type='checkbox'],
+  input[type='radio'] {
+    cursor: pointer;
+  }
+  :disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
   body {
     @apply bg-background text-base leading-relaxed text-foreground antialiased;
   }
