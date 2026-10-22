@@ -160,8 +160,8 @@ model DuoAnalysis {
 model MatchupTip {
   champA    String
   champB    String
-  // [{ aspecto, a, b }]: a = champA's column, b = champB's
-  rows      Json
+  // MatchupTip (src/lib/matchup.ts): "a" = champA, "b" = champB
+  tip       Json
   createdAt DateTime @default(now())
   expiresAt DateTime
 
