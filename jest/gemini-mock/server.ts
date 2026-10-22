@@ -22,9 +22,15 @@ export const geminiModels: string[] = [];
  * Set by a test: `next` answers every call until reset; `once` answers one
  * call each, in order (e.g. two 503s, then the normal answer)
  */
-export const geminiFault: { next: Response | null; once: Response[] } = {
+export const geminiFault: {
+  next: Response | null;
+  once: Response[];
+  /** Answer only after this long, like the real (slow) model */
+  delayMs: number;
+} = {
   next: null,
   once: [],
+  delayMs: 0,
 };
 
 const json = (body: unknown, status = 200) =>
@@ -115,6 +121,9 @@ export function withGeminiMock(realFetch: typeof fetch): typeof fetch {
     if (once) return once;
     if (geminiFault.next) return geminiFault.next.clone();
 
+    if (geminiFault.delayMs) {
+      await new Promise((r) => setTimeout(r, geminiFault.delayMs));
+    }
     const request = JSON.parse(String(init?.body)) as GenerateContentRequest;
     const prompt = request.contents[0].parts[0].text;
     geminiCalls.push(prompt);
