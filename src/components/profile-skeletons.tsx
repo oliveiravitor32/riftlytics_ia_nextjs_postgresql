@@ -56,7 +56,7 @@ export function QueueCardSkeleton({ title }: { title: string }) {
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-4 w-24" />
         </div>
-        <Skeleton className="h-1.5 w-full rounded-full" />
+        <Skeleton className="h-1.5 w-full rounded-md" />
       </Loading>
     </Card>
   );
@@ -73,7 +73,7 @@ export function PdlChartSkeleton({ height = 112 }: { height?: number }) {
       {[40, 55, 45, 70, 60, 80, 65, 75, 50, 85, 70, 90].map((h, i) => (
         <Skeleton
           key={i}
-          className="flex-1 rounded-sm"
+          className="flex-1 rounded-md"
           style={{ height: `${h}%` }}
         />
       ))}
@@ -109,7 +109,7 @@ export function MatchStatsSkeleton() {
                 <Skeleton className="h-4 w-16" />
                 <Skeleton className="h-4 w-8" />
               </div>
-              <Skeleton className="h-1.5 w-full rounded-full" />
+              <Skeleton className="h-1.5 w-full rounded-md" />
             </div>
           ))}
         </div>
@@ -133,8 +133,8 @@ export function GameResumeCardSkeleton() {
         <div className="grid gap-3 p-3 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              <Skeleton className="size-14 rounded-lg" />
-              <Skeleton className="size-11 rounded-lg" />
+              <Skeleton className="size-14 rounded-md" />
+              <Skeleton className="size-11 rounded-md" />
               <div className="flex-1 space-y-3">
                 <Skeleton className="h-6 w-24" />
                 <Skeleton className="h-3 w-16" />
@@ -145,7 +145,7 @@ export function GameResumeCardSkeleton() {
               <Skeleton className="size-7" />
               <div className="mx-2 flex gap-1.5">
                 {Array.from({ length: 7 }, (_, i) => (
-                  <Skeleton key={i} className="size-6 rounded-lg" />
+                  <Skeleton key={i} className="size-6 rounded-md" />
                 ))}
               </div>
             </div>

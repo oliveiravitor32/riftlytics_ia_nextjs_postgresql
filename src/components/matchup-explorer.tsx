@@ -41,7 +41,7 @@ function SummaryTag({
 }) {
   const winner = side === 'a' ? a : side === 'b' ? b : null;
   return (
-    <li className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+    <li className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
       <span className="text-muted-foreground">{label}</span>
       {winner ? (
         <span className="flex items-center gap-1.5 font-semibold">
@@ -87,7 +87,7 @@ function MatchupResult({
           />
           <SummaryTag label="Ajuda do jungle" side={tip.jungle} a={a} b={b} />
           <SummaryTag label="Roaming" side={tip.roaming} a={a} b={b} />
-          <li className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+          <li className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm">
             <span className="text-muted-foreground">Dificuldade</span>
             <span className="font-semibold">
               {a.name} {tip.dificuldade.a} · {b.name} {tip.dificuldade.b}
