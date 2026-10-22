@@ -289,7 +289,7 @@ export function RankingBoard({
                     <Crown
                       aria-hidden="true"
                       className={cn(
-                        'absolute -top-4 size-5 -rotate-12',
+                        'absolute -top-4 left-1/2 size-5 -translate-x-1/2',
                         podium.crown
                       )}
                     />
