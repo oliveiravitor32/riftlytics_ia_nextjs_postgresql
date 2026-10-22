@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { label: 'Início', href: '/' },
   { label: 'Ranking', href: '/ranking' },
-  { label: 'Matchups', href: '/matchups' },
+  { label: 'Como jogar a matchup?', href: '/matchups' },
 ];
 
 export default function NavMenu() {
