@@ -1,4 +1,7 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-npx lint-staged
+# Not "npx": on Windows Node's npx script starts with "#!/usr/bin/env bash",
+# and outside Git Bash (e.g. GitHub Desktop) that bash is WSL's, which fails
+# without a Linux distro. The local bin shim runs with sh everywhere.
+./node_modules/.bin/lint-staged
