@@ -7,6 +7,147 @@ import { Card } from './ui/card';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { useMatchupQuery } from '@/src/queries/useMatchupQuery';
 import type { ChampionOption } from '@/src/services/dataDragonService';
+import { splitBold, type MatchupTip, type Side } from '@/src/lib/matchup';
+
+/** "Espere a **fumaça** acabar" with the marked word in bold */
+function Tip({ text }: { text: string }) {
+  return (
+    <>
+      {splitBold(text).map((part, i) =>
+        part.bold ? (
+          <strong key={i} className="font-semibold text-foreground">
+            {part.text}
+          </strong>
+        ) : (
+          <React.Fragment key={i}>{part.text}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
+/** One summary tag: what, and who has it (icon + name) or "Equilibrado" */
+function SummaryTag({
+  label,
+  side,
+  a,
+  b,
+}: {
+  label: string;
+  side: Side;
+  a: ChampionOption;
+  b: ChampionOption;
+}) {
+  const winner = side === 'a' ? a : side === 'b' ? b : null;
+  return (
+    <li className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+      <span className="text-muted-foreground">{label}</span>
+      {winner ? (
+        <span className="flex items-center gap-1.5 font-semibold">
+          <img
+            src={winner.image}
+            alt=""
+            className="size-5 rounded-full border border-border"
+          />
+          {winner.name}
+        </span>
+      ) : (
+        <span className="font-semibold">Equilibrado</span>
+      )}
+    </li>
+  );
+}
+
+function MatchupResult({
+  tip,
+  a,
+  b,
+}: {
+  tip: MatchupTip;
+  a: ChampionOption;
+  b: ChampionOption;
+}) {
+  return (
+    <section aria-label={`${a.name} contra ${b.name}`} className="space-y-4">
+      <div className="space-y-2">
+        <ul aria-label="Resumo do matchup" className="flex flex-wrap gap-2">
+          <SummaryTag label="Vantagem" side={tip.vantagem.quem} a={a} b={b} />
+          <SummaryTag
+            label="Trocas curtas"
+            side={tip.trocas.curtas}
+            a={a}
+            b={b}
+          />
+          <SummaryTag
+            label="Trocas longas"
+            side={tip.trocas.longas}
+            a={a}
+            b={b}
+          />
+          <SummaryTag label="Ajuda do jungle" side={tip.jungle} a={a} b={b} />
+          <SummaryTag label="Roaming" side={tip.roaming} a={a} b={b} />
+          <li className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <span className="text-muted-foreground">Dificuldade</span>
+            <span className="font-semibold">
+              {a.name} {tip.dificuldade.a} · {b.name} {tip.dificuldade.b}
+            </span>
+          </li>
+        </ul>
+        <p className="max-w-prose text-muted-foreground">
+          <Tip text={tip.vantagem.motivo} />
+        </p>
+      </div>
+
+      <Card className="overflow-x-auto p-0">
+        <table className="w-full text-left text-sm">
+          <caption className="sr-only">
+            {a.name} contra {b.name} na fase de rotas
+          </caption>
+          <thead>
+            <tr className="border-b border-border">
+              <th
+                scope="col"
+                className="w-32 px-4 py-3 font-medium text-muted-foreground"
+              >
+                O que fazer
+              </th>
+              {[a, b].map((c) => (
+                <th key={c.id} scope="col" className="px-4 py-3 font-semibold">
+                  <span className="flex items-center gap-2">
+                    <img
+                      src={c.image}
+                      alt=""
+                      className="size-6 rounded-full border border-border"
+                    />
+                    {c.name}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tip.linhas.map((row) => (
+              <tr
+                key={row.aspecto}
+                className="border-b border-border last:border-0"
+              >
+                <th scope="row" className="px-4 py-3 align-top font-medium">
+                  {row.aspecto}
+                </th>
+                <td className="px-4 py-3 align-top text-muted-foreground">
+                  <Tip text={row.a} />
+                </td>
+                <td className="px-4 py-3 align-top text-muted-foreground">
+                  <Tip text={row.b} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </section>
+  );
+}
 
 function ChampionSelect({
   id,
@@ -94,7 +235,8 @@ export function MatchupExplorer({
             className="size-4 animate-spin opacity-70"
             aria-hidden="true"
           />
-          Gerando as dicas…
+          Gerando as dicas… Na primeira vez de cada dupla pode levar até 2
+          minutos.
         </p>
       )}
 
@@ -107,53 +249,7 @@ export function MatchupExplorer({
       )}
 
       {query.data && shown && (
-        <Card className="overflow-x-auto p-0">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">
-              {shown[0].name} contra {shown[1].name} na fase de rotas
-            </caption>
-            <thead>
-              <tr className="border-b border-border">
-                <th
-                  scope="col"
-                  className="px-4 py-3 font-medium text-muted-foreground"
-                >
-                  Aspecto
-                </th>
-                {shown.map((c) => (
-                  <th
-                    key={c.id}
-                    scope="col"
-                    className="px-4 py-3 font-semibold"
-                  >
-                    <span className="flex items-center gap-2">
-                      <img
-                        src={c.image}
-                        alt=""
-                        className="size-6 rounded-full border border-border"
-                      />
-                      {c.name}
-                    </span>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {query.data.rows.map((row) => (
-                <tr
-                  key={row.aspecto}
-                  className="border-b border-border last:border-0"
-                >
-                  <th scope="row" className="px-4 py-3 align-top font-medium">
-                    {row.aspecto}
-                  </th>
-                  <td className="px-4 py-3 align-top">{row.a}</td>
-                  <td className="px-4 py-3 align-top">{row.b}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <MatchupResult tip={query.data.tip} a={shown[0]} b={shown[1]} />
       )}
     </div>
   );

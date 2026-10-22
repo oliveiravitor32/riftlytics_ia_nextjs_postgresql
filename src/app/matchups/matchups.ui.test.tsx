@@ -8,13 +8,9 @@ import userEvent from '@testing-library/user-event';
 import MatchupsPage, { metadata } from './page';
 import { renderApp } from '@/jest/render-app';
 import { RIOT_WAIT_MS } from '@/jest/timeouts';
-import {
-  fakeTip,
-  geminiFault,
-  geminiRateLimited,
-} from '@/jest/gemini-mock/server';
+import { geminiFault, geminiRateLimited } from '@/jest/gemini-mock/server';
 import { prisma } from '@/src/lib/db';
-import { MATCHUP_ASPECTS } from '@/src/lib/matchup';
+import { MATCHUP_ROWS } from '@/src/lib/matchup';
 
 beforeEach(async () => {
   await prisma.matchupTip.deleteMany();
@@ -29,7 +25,7 @@ async function pick(a: string, b: string) {
   await user.click(screen.getByRole('button', { name: 'Ver dicas' }));
 }
 
-it('shows one row per aspect, with my champion in the first column', async () => {
+it('shows the summary tags and one short action per row for each champion', async () => {
   await pick('Katarina', 'Akali');
 
   const table = await screen.findByRole(
@@ -37,12 +33,30 @@ it('shows one row per aspect, with my champion in the first column', async () =>
     { name: 'Katarina contra Akali na fase de rotas' },
     { timeout: RIOT_WAIT_MS }
   );
+  // The fake makes Akali (first alphabetically) win the lane and short trades
+  const summary = screen.getByRole('list', { name: 'Resumo do matchup' });
+  const tag = (label: string) =>
+    within(summary).getByText(label).parentElement as HTMLElement;
+  expect(tag('Vantagem')).toHaveTextContent('Akali');
+  expect(tag('Trocas curtas')).toHaveTextContent('Akali');
+  expect(tag('Trocas longas')).toHaveTextContent('Katarina');
+  expect(tag('Roaming')).toHaveTextContent('Equilibrado');
+  expect(tag('Dificuldade')).toHaveTextContent(
+    'Katarina Difícil · Akali Fácil'
+  );
+
   const rows = within(table).getAllByRole('row').slice(1);
-  expect(rows).toHaveLength(MATCHUP_ASPECTS.length);
-  MATCHUP_ASPECTS.forEach((aspect, i) => {
+  expect(rows).toHaveLength(MATCHUP_ROWS.length);
+  MATCHUP_ROWS.forEach((aspect, i) => {
     expect(rows[i]).toHaveTextContent(aspect);
-    expect(rows[i]).toHaveTextContent(fakeTip('Katarina', aspect));
-    expect(rows[i]).toHaveTextContent(fakeTip('Akali', aspect));
+    // The **marked** word is bold, without the asterisks
+    expect(rows[i]).not.toHaveTextContent('**');
+    expect(
+      within(rows[i]).getAllByText('Katarina', { selector: 'strong' })
+    ).toHaveLength(1);
+    expect(
+      within(rows[i]).getAllByText('Akali', { selector: 'strong' })
+    ).toHaveLength(1);
   });
 });
 
