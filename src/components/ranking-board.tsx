@@ -298,7 +298,7 @@ export function RankingBoard({
                 <div className="hidden sm:block">
                   <TopChampions champions={row.champions} />
                 </div>
-                <div className="text-right">
+                <div className="w-40 shrink-0 text-right">
                   <p className="text-sm font-semibold uppercase tracking-wider">
                     {formatTier(tier, rank)}
                   </p>
