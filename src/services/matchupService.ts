@@ -10,14 +10,15 @@ import { AppError } from '@/src/lib/errors';
 import {
   MATCHUP_TTL_DAYS,
   orderPair,
-  orientRows,
-  type MatchupRow,
+  orientTip,
+  parseMatchupTip,
+  type MatchupTip,
 } from '@/src/lib/matchup';
 import { championList } from '@/src/services/dataDragonService';
-import { generateMatchupRows } from '@/src/services/geminiService';
+import { generateMatchupTip } from '@/src/services/geminiService';
 
 export type Matchup = {
-  rows: MatchupRow[];
+  tip: MatchupTip;
   /** When the AI wrote it */
   createdAt: string;
   /** Read from the DB (true) or just generated (false) */
@@ -25,6 +26,14 @@ export type Matchup = {
 };
 
 const DAY = 86_400_000;
+
+function safeParse(value: unknown): MatchupTip | null {
+  try {
+    return parseMatchupTip(value);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * `first`/`second`: champion ids (Riot's championName). `beforeGenerate` runs
@@ -47,19 +56,21 @@ export async function getMatchup(
   const stored = await prisma.matchupTip.findUnique({
     where: { champA_champB: { champA, champB } },
   });
-  if (stored && stored.expiresAt > new Date()) {
+  // A stored tip in an older format is regenerated like an expired one
+  const storedTip = stored && safeParse(stored.tip);
+  if (stored && storedTip && stored.expiresAt > new Date()) {
     return {
-      rows: orientRows(stored.rows as MatchupRow[], swapped),
+      tip: orientTip(storedTip, swapped),
       createdAt: stored.createdAt.toISOString(),
       cached: true,
     };
   }
 
   await beforeGenerate();
-  const rows = await generateMatchupRows(champA, champB);
+  const tip = await generateMatchupTip(champA, champB);
   const now = new Date();
   const data = {
-    rows,
+    tip,
     createdAt: now,
     expiresAt: new Date(now.getTime() + MATCHUP_TTL_DAYS * DAY),
   };
@@ -69,7 +80,7 @@ export async function getMatchup(
     update: data,
   });
   return {
-    rows: orientRows(rows, swapped),
+    tip: orientTip(tip, swapped),
     createdAt: now.toISOString(),
     cached: false,
   };

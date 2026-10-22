@@ -6,7 +6,7 @@
  * themselves through `geminiFault`.
  */
 
-import { MATCHUP_ASPECTS } from '@/src/lib/matchup';
+import { MATCHUP_ROWS, type MatchupTip } from '@/src/lib/matchup';
 import type {
   GeminiErrorResponse,
   GenerateContentRequest,
@@ -35,7 +35,23 @@ const json = (body: unknown, status = 200) =>
 
 /** The fake's text for champion `name` on `aspect` */
 export const fakeTip = (name: string, aspect: string) =>
-  `${name}: dica de ${aspect.toLowerCase()}`;
+  `Jogue **${name}** em ${aspect.toLowerCase()}`;
+
+/** The fake's whole answer: "a" wins the lane and short trades */
+export function fakeMatchup(a: string, b: string): MatchupTip {
+  return {
+    vantagem: { quem: 'a', motivo: `${a} vence o nível 1` },
+    trocas: { curtas: 'a', longas: 'b' },
+    jungle: 'b',
+    roaming: 'igual',
+    dificuldade: { a: 'Fácil', b: 'Difícil' },
+    linhas: MATCHUP_ROWS.map((aspecto) => ({
+      aspecto,
+      a: fakeTip(a, aspecto),
+      b: fakeTip(b, aspecto),
+    })),
+  };
+}
 
 export function geminiRateLimited(retryDelay = '31s'): Response {
   const body: GeminiErrorResponse = {
@@ -102,15 +118,7 @@ export function withGeminiMock(realFetch: typeof fetch): typeof fetch {
     const request = JSON.parse(String(init?.body)) as GenerateContentRequest;
     const prompt = request.contents[0].parts[0].text;
     geminiCalls.push(prompt);
-    const [, a, b] = prompt.match(/: (.+) vs (.+) na fase de rotas/) ?? [];
-    return geminiText(
-      JSON.stringify({
-        linhas: MATCHUP_ASPECTS.map((aspecto) => ({
-          aspecto,
-          a: fakeTip(a, aspecto),
-          b: fakeTip(b, aspecto),
-        })),
-      })
-    );
+    const [, a, b] = prompt.match(/: (.+) \(a\) vs (.+) \(b\)/) ?? [];
+    return geminiText(JSON.stringify(fakeMatchup(a, b)));
   }) as typeof fetch;
 }

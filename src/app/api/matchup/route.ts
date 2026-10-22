@@ -17,8 +17,8 @@ import {
 import { getMatchup } from '@/src/services/matchupService';
 import { NEW_MATCHUPS_PER_HOUR } from '@/src/lib/matchup';
 
-// Gemini can take 45 s per attempt when busy (Vercel's default is shorter)
-export const maxDuration = 60;
+// Gemini can take 2 minutes when busy (Vercel's default limit is shorter)
+export const maxDuration = 300;
 
 const limiter = new Ratelimit({
   redis,

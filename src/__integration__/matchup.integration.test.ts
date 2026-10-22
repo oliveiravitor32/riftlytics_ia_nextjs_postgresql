@@ -7,13 +7,14 @@ import { NextRequest } from 'next/server';
 import { GET } from '@/src/app/api/matchup/route';
 import { prisma } from '@/src/lib/db';
 import {
-  MATCHUP_ASPECTS,
+  MATCHUP_ROWS,
   MATCHUP_TTL_DAYS,
   NEW_MATCHUPS_PER_HOUR,
 } from '@/src/lib/matchup';
 import { championList } from '@/src/services/dataDragonService';
 import { getMatchup } from '@/src/services/matchupService';
 import {
+  fakeMatchup,
   fakeTip,
   geminiCalls,
   geminiFault,
@@ -45,10 +46,13 @@ it('generates the tips once, then serves them from the database', async () => {
   const first = await getMatchup('Katarina', 'Akali');
 
   expect(first.cached).toBe(false);
-  expect(first.rows.map((r) => r.aspecto)).toEqual([...MATCHUP_ASPECTS]);
-  // Columns in the order asked: a = Katarina, b = Akali
-  expect(first.rows[0].a).toBe(fakeTip('Katarina', MATCHUP_ASPECTS[0]));
-  expect(first.rows[0].b).toBe(fakeTip('Akali', MATCHUP_ASPECTS[0]));
+  expect(first.tip.linhas.map((r) => r.aspecto)).toEqual([...MATCHUP_ROWS]);
+  // In the order asked: a = Katarina, b = Akali (stored as Akali × Katarina)
+  expect(first.tip.linhas[0].a).toBe(fakeTip('Katarina', MATCHUP_ROWS[0]));
+  expect(first.tip.linhas[0].b).toBe(fakeTip('Akali', MATCHUP_ROWS[0]));
+  // The fake makes the stored "a" (Akali) win the lane: asked as B×A, that's b
+  expect(first.tip.vantagem.quem).toBe('b');
+  expect(first.tip.dificuldade).toEqual({ a: 'Difícil', b: 'Fácil' });
 
   const again = await getMatchup('Katarina', 'Akali');
   expect(again).toEqual({ ...first, cached: true });
@@ -61,9 +65,11 @@ it('A×B and B×A share one stored answer, with the columns swapped', async () =
 
   expect(geminiCalls).toHaveLength(1);
   expect(ba.cached).toBe(true);
-  expect(ba.rows.map((r) => [r.a, r.b])).toEqual(
-    ab.rows.map((r) => [r.b, r.a])
+  expect(ba.tip.linhas.map((r) => [r.a, r.b])).toEqual(
+    ab.tip.linhas.map((r) => [r.b, r.a])
   );
+  expect(ab.tip).toEqual(fakeMatchup('Akali', 'Katarina'));
+  expect(ba.tip.trocas).toEqual({ curtas: 'b', longas: 'a' });
   expect(await prisma.matchupTip.count()).toBe(1);
 });
 
@@ -93,8 +99,8 @@ it('an overloaded model (503) is tried again before giving up', async () => {
 
   expect(res.status).toBe(200);
   expect(geminiFault.once).toHaveLength(0);
-  // The last attempt went to the lighter, less busy model
-  expect(geminiModels.at(-1)).toBe('gemini-flash-lite-latest');
+  // Every attempt on the same model: the lite one wrote nonsense
+  expect(new Set(geminiModels)).toEqual(new Set(['gemini-flash-latest']));
   expect(await prisma.matchupTip.count()).toBe(1);
 });
 
@@ -105,6 +111,22 @@ it('a model that stays overloaded is a 503 and nothing is stored', async () => {
 
   expect(res.status).toBe(503);
   expect(await prisma.matchupTip.count()).toBe(0);
+});
+
+it('a stored tip in an older format is generated again', async () => {
+  await prisma.matchupTip.create({
+    data: {
+      champA: 'Akali',
+      champB: 'Katarina',
+      tip: { linhas: [{ aspecto: 'Vantagem', a: 'x', b: 'y' }] },
+      expiresAt: new Date(Date.now() + 86_400_000),
+    },
+  });
+
+  const matchup = await getMatchup('Akali', 'Katarina');
+
+  expect(matchup.cached).toBe(false);
+  expect(matchup.tip).toEqual(fakeMatchup('Akali', 'Katarina'));
 });
 
 it('a bad answer from the AI is an error and nothing is stored', async () => {
@@ -132,7 +154,7 @@ describe('GET /api/matchup', () => {
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.rows).toHaveLength(MATCHUP_ASPECTS.length);
+    expect(body.tip.linhas).toHaveLength(MATCHUP_ROWS.length);
     expect(body.cached).toBe(false);
   });
 
