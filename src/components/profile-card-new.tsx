@@ -10,6 +10,7 @@ import { Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { useProfileQuery } from '@/src/queries/useProfileQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { RankBadge } from './rank-badge';
+import { RankEmblem } from './rank-emblem';
 import { PlayerAvatar } from './player-avatar';
 import { StatItem } from './stat-item';
 import { WinRateBar } from './win-rate-bar';
@@ -118,17 +119,24 @@ export function ProfileCard({
               </div>
             </div>
           </div>
-          {rankInfo ? (
-            <RankBadge
-              tier={rankInfo.tier}
-              rank={rankInfo.rank}
-              leaguePoints={rankInfo.leaguePoints}
+          <div className="flex items-center gap-3">
+            {rankInfo ? (
+              <RankBadge
+                tier={rankInfo.tier}
+                rank={rankInfo.rank}
+                leaguePoints={rankInfo.leaguePoints}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Ainda sem ranque no Solo/Duo
+              </p>
+            )}
+            <RankEmblem
+              tier={rankInfo?.tier ?? null}
+              rank={rankInfo?.rank}
+              className="size-14"
             />
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Ainda sem ranque no Solo/Duo
-            </p>
-          )}
+          </div>
         </header>
 
         {/* Row 2: record + win rate bar */}
