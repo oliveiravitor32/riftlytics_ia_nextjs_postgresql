@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import Header from '../components/shared/header/header';
 
 import { ThemeProvider } from 'next-themes';
+import { THEME_PROVIDER_PROPS } from '@/src/lib/theme';
 import { QueryProvider } from '../providers/query-provider';
 import '../styles/globals.css';
 import { Inter } from 'next/font/google';
@@ -31,12 +32,7 @@ export default function RootLayout({
       className={cn('font-sans', inter.variable)}
     >
       <body>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider {...THEME_PROVIDER_PROPS}>
           <QueryProvider>
             <Header />
             <main id="conteudo">{children}</main>

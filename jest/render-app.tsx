@@ -7,6 +7,7 @@
 import React, { type ReactElement } from 'react';
 import { render } from '@testing-library/react';
 import { ThemeProvider } from 'next-themes';
+import { THEME_PROVIDER_PROPS } from '@/src/lib/theme';
 import {
   AppRouterContext,
   type AppRouterInstance,
@@ -35,13 +36,8 @@ export function renderApp(ui: ReactElement, { pathname = '/' } = {}) {
     <AppRouterContext.Provider value={router}>
       <PathnameContext.Provider value={pathname}>
         <SearchParamsContext.Provider value={new URLSearchParams()}>
-          {/* Same props as src/app/layout.tsx */}
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
+          {/* Same setup as src/app/layout.tsx */}
+          <ThemeProvider {...THEME_PROVIDER_PROPS}>
             <QueryProvider client={createQueryClient()}>{ui}</QueryProvider>
           </ThemeProvider>
         </SearchParamsContext.Provider>
