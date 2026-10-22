@@ -28,7 +28,7 @@ export default function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Tema de cores"
-      className="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5"
     >
       {OPTIONS.map(({ value, label, icon: Icon }) => {
         const selected = current === value;

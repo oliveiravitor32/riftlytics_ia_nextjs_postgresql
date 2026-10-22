@@ -57,11 +57,11 @@ export function MatchStatsCards({
                   <span className="text-muted-foreground">{pct}%</span>
                 </div>
                 <div
-                  className="h-1.5 overflow-hidden rounded-full bg-muted"
+                  className="h-1.5 overflow-hidden rounded-md bg-muted"
                   role="presentation"
                 >
                   <div
-                    className="h-full rounded-full bg-primary"
+                    className="h-full rounded-md bg-primary"
                     style={{ width: `${pct}%` }}
                   />
                 </div>

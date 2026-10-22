@@ -24,7 +24,7 @@ export function RankBadge({
     <div className={cn('flex flex-col items-end gap-1', className)}>
       <div
         className={cn(
-          'rounded-full border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-foreground'
+          'rounded-md border border-border bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-foreground'
         )}
       >
         {formatTier(tier, rank)}

@@ -28,9 +28,9 @@ export function WinRateBar({
           {winRate.toFixed(1)}% ({wins}V {losses}D)
         </span>
       </div>
-      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+      <div className="h-2 w-full overflow-hidden rounded-md bg-muted">
         <div
-          className="h-full rounded-full bg-primary transition-all"
+          className="h-full rounded-md bg-primary transition-all"
           style={{ width: `${winRate}%` }}
         />
       </div>

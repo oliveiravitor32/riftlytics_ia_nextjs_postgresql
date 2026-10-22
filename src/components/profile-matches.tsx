@@ -41,7 +41,7 @@ export function ProfileMatches({
   return (
     <>
       {matches.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground">
+        <p className="rounded-md border border-dashed border-border p-6 text-center text-muted-foreground">
           Nenhuma partida recente encontrada.
         </p>
       ) : (
@@ -57,7 +57,7 @@ export function ProfileMatches({
       {query.hasNextPage && (
         <Button
           variant="outline"
-          className="w-full rounded-full"
+          className="w-full rounded-md"
           onClick={() => query.fetchNextPage()}
           disabled={query.isFetchingNextPage}
         >

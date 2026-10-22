@@ -32,7 +32,7 @@ export function RateLimitNotice({ retryAfter }: { retryAfter: number }) {
   return (
     <p
       role="alert"
-      className="flex max-w-prose gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
+      className="flex max-w-prose gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4 text-amber-800 dark:text-amber-200"
     >
       <AlertTriangle
         className="mt-0.5 size-5 shrink-0 opacity-80"
@@ -91,11 +91,11 @@ function QueueCard({
             </p>
           </div>
           <div
-            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            className="h-1.5 overflow-hidden rounded-md bg-muted"
             role="presentation"
           >
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-md bg-primary"
               style={{ width: `${winRate}%` }}
             />
           </div>
