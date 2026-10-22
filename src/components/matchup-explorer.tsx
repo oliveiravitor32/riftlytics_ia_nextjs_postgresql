@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useSyncExternalStore } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -99,7 +99,40 @@ function MatchupResult({
         </p>
       </div>
 
-      <Card className="overflow-x-auto p-0">
+      {/* Phones: one block per row, each champion's action below the other */}
+      <ul aria-label="O que fazer" className="space-y-3 sm:hidden">
+        {tip.linhas.map((row) => (
+          <li
+            key={row.aspecto}
+            className="space-y-2 rounded-md border border-border bg-card p-3 text-sm"
+          >
+            <p className="font-semibold">{row.aspecto}</p>
+            {[
+              [a, row.a],
+              [b, row.b],
+            ].map(([c, text]) => {
+              const champion = c as ChampionOption;
+              return (
+                <p
+                  key={champion.id}
+                  className="flex items-start gap-2 text-muted-foreground"
+                >
+                  <img
+                    src={champion.image}
+                    alt={champion.name}
+                    className="size-6 shrink-0 rounded-full border border-border"
+                  />
+                  <span>
+                    <Tip text={text as string} />
+                  </span>
+                </p>
+              );
+            })}
+          </li>
+        ))}
+      </ul>
+
+      <Card className="hidden overflow-x-auto p-0 sm:block">
         <table className="w-full text-left text-sm">
           <caption className="sr-only">
             {a.name} contra {b.name} na fase de rotas
@@ -150,14 +183,67 @@ function MatchupResult({
   );
 }
 
+type Pair = { a: string; b: string };
+
+const SAVED_PAIR_KEY = 'riftlytics-matchup';
+
+// Storage can be off (private window, blocked site data): then nothing is kept
+function readSavedPair(): string | null {
+  try {
+    return localStorage.getItem(SAVED_PAIR_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function parsePair(raw: string | null): Pair | null {
+  try {
+    const saved = JSON.parse(raw ?? 'null');
+    return typeof saved?.a === 'string' && typeof saved?.b === 'string'
+      ? { a: saved.a, b: saved.b }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+const noSubscription = () => () => {};
+
+function savePair(pair: { a: string; b: string }) {
+  try {
+    localStorage.setItem(SAVED_PAIR_KEY, JSON.stringify(pair));
+  } catch {
+    // Not kept; the page still works
+  }
+}
+
+/**
+ * Back on the tab, the last matchup asked comes back with its answer (or its
+ * still-running search) from the query cache. Read from the browser only:
+ * the server renders the empty form, then the saved one mounts in its place.
+ */
 export function MatchupExplorer({
   champions,
 }: {
   champions: ChampionOption[];
 }): React.ReactElement {
-  const [a, setA] = useState('');
-  const [b, setB] = useState('');
-  const [pair, setPair] = useState<{ a: string; b: string } | null>(null);
+  const raw = useSyncExternalStore(noSubscription, readSavedPair, () => null);
+  const saved = parsePair(raw);
+  const initial =
+    saved && champions.some((c) => c.id === saved.a) ? saved : null;
+  return <Explorer key={raw ?? ''} champions={champions} initial={initial} />;
+}
+
+function Explorer({
+  champions,
+  initial,
+}: {
+  champions: ChampionOption[];
+  initial: Pair | null;
+}): React.ReactElement {
+  const [a, setA] = useState(initial?.a ?? '');
+  const [b, setB] = useState(initial?.b ?? '');
+  const [pair, setPair] = useState(initial);
   const query = useMatchupQuery(pair);
   const byId = new Map(champions.map((c) => [c.id, c]));
 
@@ -170,6 +256,7 @@ export function MatchupExplorer({
         onSubmit={(e) => {
           e.preventDefault();
           setPair({ a, b });
+          savePair({ a, b });
         }}
       >
         <ChampionCombobox

@@ -17,6 +17,9 @@ export function useMatchupQuery(pair: { a: string; b: string } | null) {
     enabled: pair !== null,
     // Stored for 2 months on the server; no need to ask again in a session
     staleTime: Infinity,
+    // Kept while the app is open, so leaving the tab and coming back shows the
+    // answer, or picks up the search still running, instead of asking again
+    gcTime: Infinity,
     retry: false,
   });
 }
