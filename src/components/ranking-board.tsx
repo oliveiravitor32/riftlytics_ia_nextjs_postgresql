@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import type { TrackedPlayer } from '@/src/services/playerService';
 import type { TopChampion } from '@/src/services/topChampionsService';
 import { TopChampions } from './top-champions';
+import { RankEmblem } from './rank-emblem';
 import { rankQueryOptions, refreshRank } from '@/src/queries/useRankQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
 import { Button } from './ui/button';
@@ -306,6 +307,7 @@ export function RankingBoard({
                     {leaguePoints} PDL
                   </p>
                 </div>
+                <RankEmblem tier={tier} rank={rank} className="size-14" />
               </li>
             );
           })}
