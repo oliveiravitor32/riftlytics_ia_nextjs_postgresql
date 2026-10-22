@@ -18,7 +18,7 @@ export function TopChampions({ champions }: { champions: TopChampion[] }) {
           <img
             src={c.image}
             alt={c.champion}
-            className="size-7 rounded-full border border-border object-cover"
+            className="size-8 rounded-full border border-border object-cover"
           />
         </li>
       ))}
