@@ -231,7 +231,46 @@ describe('getMatchStats', () => {
       rows.filter((r) => r.championName === top.champion).length
     );
     expect(stats.champions.length).toBeLessThanOrEqual(5);
-    expect(stats.roles.reduce((sum, r) => sum + r.games, 0)).toBe(rows.length);
+    expect(stats.roles.reduce((sum, r) => sum + r.games, 0)).toBe(
+      stats.roleTotal
+    );
+  });
+
+  it('roles count only games with a lane: Arena (position "Invalid") is left out', async () => {
+    const before = await getMatchStats(RIOT_ID);
+    await prisma.match.create({
+      data: {
+        id: 'ARENA_1',
+        queueId: 1700,
+        gameCreation: new Date(0),
+        gameDuration: 1500,
+        data: {},
+        players: {
+          create: {
+            playerId,
+            playedAt: new Date(0),
+            queueId: 1700,
+            championName: 'Jhin',
+            position: 'Invalid',
+            win: true,
+            kills: 5,
+            deaths: 2,
+            assists: 3,
+          },
+        },
+      },
+    });
+
+    try {
+      const stats = await getMatchStats(RIOT_ID);
+      // Champions still count it; roles don't
+      expect(stats.total).toBe(before.total + 1);
+      expect(stats.roleTotal).toBe(before.roleTotal);
+      expect(stats.roles).toEqual(before.roles);
+      expect(stats.roles.map((r) => r.role)).not.toContain('Outra');
+    } finally {
+      await prisma.match.delete({ where: { id: 'ARENA_1' } });
+    }
   });
 
   it('shows champion images from the latest Data Dragon version', async () => {

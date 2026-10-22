@@ -12,7 +12,7 @@ export function MatchStatsCards({
 }: {
   stats: MatchStats;
 }): React.ReactElement | null {
-  const { champions, roles, total } = stats;
+  const { champions, roles, total, roleTotal } = stats;
   if (total === 0) return null;
 
   return (
@@ -49,7 +49,7 @@ export function MatchStatsCards({
         </h2>
         <ul className="space-y-1.5">
           {roles.map(({ role, games }) => {
-            const pct = Math.round((games / total) * 100);
+            const pct = Math.round((games / roleTotal) * 100);
             return (
               <li key={role} className="space-y-1">
                 <div className="flex justify-between text-sm">
@@ -70,7 +70,7 @@ export function MatchStatsCards({
           })}
         </ul>
         <p className="text-xs text-muted-foreground">
-          Com base nas {total} partidas guardadas
+          Com base nas {roleTotal} partidas com rota
         </p>
       </Card>
     </div>

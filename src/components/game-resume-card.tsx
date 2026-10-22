@@ -33,6 +33,8 @@ export type GameResumeMatch = {
   runes: {
     primaryTree: { name: string; image: string };
     keystone: { name: string; image: string };
+    /** Shown beside the keystone; null when the match has no runes */
+    secondaryTree: { name: string; image: string } | null;
   };
   allies: { name: string; champion: string; image: string }[];
   enemies: { name: string; champion: string; image: string }[];
@@ -157,13 +159,15 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
             <Icon
               src={match.runes.keystone.image}
               alt={match.runes.keystone.name}
-              className="size-[22px] rounded-full bg-black/60"
+              className="size-[22px] rounded-full bg-black/60 sm:size-7"
             />
-            <Icon
-              src={match.runes.primaryTree.image}
-              alt={match.runes.primaryTree.name}
-              className="size-[22px] p-0.5"
-            />
+            {match.runes.secondaryTree ? (
+              <Icon
+                src={match.runes.secondaryTree.image}
+                alt={match.runes.secondaryTree.name}
+                className="size-[22px] p-1 sm:size-7 sm:p-0.5"
+              />
+            ) : null}
           </div>
         </div>
         <div className="flex items-center gap-0.5">
@@ -219,8 +223,27 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
         <dd className="text-foreground/80">{match.damageShare}</dd>
       </dl>
 
-      {/* Both teams; the player in bold */}
-      <div className="ml-auto hidden grid-cols-2 gap-3 sm:grid sm:w-56">
+      {/* Who they faced in lane */}
+      <div
+        className="ml-auto flex flex-col items-center gap-1"
+        title={`Contra ${match.laneOpponent.champion} na rota`}
+      >
+        <Icon
+          src={match.laneOpponent.image}
+          alt={`Oponente de rota: ${match.laneOpponent.champion}`}
+          className="size-12 rounded-full border border-border"
+        />
+        <span
+          aria-hidden="true"
+          className={cn('text-sm font-black tracking-widest', tone.text)}
+        >
+          VS
+        </span>
+      </div>
+
+      {/* Both teams; the player in bold. Beside the stats on desktop, below
+          them on a lighter band on phones */}
+      <div className="grid w-full grid-cols-2 gap-3 rounded-md bg-foreground/5 p-2 sm:w-56 sm:bg-transparent sm:p-0">
         <Team players={blueTeam} playerName={match.playerName} />
         <Team players={redTeam} playerName={match.playerName} />
       </div>
