@@ -71,6 +71,26 @@ export class NotFoundError extends AppError {
 }
 
 /**
+ * Not signed in (missing, expired or forged session)
+ */
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Entre com o Google para continuar') {
+    super(message, 401);
+    Object.setPrototypeOf(this, UnauthorizedError.prototype);
+  }
+}
+
+/**
+ * Signed in, but not allowed (e.g. not on the posting allowlist)
+ */
+export class ForbiddenError extends AppError {
+  constructor(message = 'Seu acesso ainda não foi liberado') {
+    super(message, 403);
+    Object.setPrototypeOf(this, ForbiddenError.prototype);
+  }
+}
+
+/**
  * External service error
  */
 export class ExternalServiceError extends AppError {

@@ -39,7 +39,11 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   );
 }
 
-export const getJson = <T>(url: string) => requestJson<T>(url);
+export const getJson = <T>(url: string, token?: string) =>
+  requestJson<T>(
+    url,
+    token ? { headers: { authorization: `Bearer ${token}` } } : undefined
+  );
 export const postJson = <T>(url: string) =>
   requestJson<T>(url, { method: 'POST' });
 

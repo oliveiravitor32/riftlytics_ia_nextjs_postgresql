@@ -12,6 +12,7 @@ import { GET as rankRoute } from '@/src/app/api/rank/[summonerName]/route';
 import { GET as matchesRoute } from '@/src/app/api/matches/[summonerName]/route';
 import { POST as refreshRoute } from '@/src/app/api/refresh/[summonerName]/route';
 import { GET as matchupRoute } from '@/src/app/api/matchup/route';
+import { GET as meRoute } from '@/src/app/api/me/route';
 
 type Handler = (
   request: NextRequest,
@@ -24,6 +25,7 @@ const ROUTES: [RegExp, Handler][] = [
   [/^\/api\/matches\/([^/?]+)/, matchesRoute],
   [/^\/api\/refresh\/([^/?]+)/, refreshRoute],
   [/^\/api\/matchup(\?|$)()/, matchupRoute],
+  [/^\/api\/me$()/, meRoute],
 ];
 
 declare global {

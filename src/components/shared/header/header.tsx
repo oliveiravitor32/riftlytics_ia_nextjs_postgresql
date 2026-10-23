@@ -1,6 +1,7 @@
 import Logo from '../../logo';
 import ThemeToggle from '../../theme-toggle';
 import NavMenu from './nav-menu';
+import AuthButton from './auth-button';
 
 export default function Header() {
   return (
@@ -12,8 +13,9 @@ export default function Header() {
           <NavMenu />
         </div>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-3">
           <ThemeToggle />
+          <AuthButton />
         </div>
       </div>
     </header>
