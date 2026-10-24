@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { Loader2, SendHorizontal, Trash2 } from 'lucide-react';
+import { Popover } from 'radix-ui';
+import {
+  CornerUpLeft,
+  Loader2,
+  Reply,
+  SendHorizontal,
+  SmilePlus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { PlayerAvatar } from '../player-avatar';
@@ -20,11 +29,14 @@ import {
   useDeletePost,
   useResenhaQuery,
   useSendPost,
+  useToggleReaction,
 } from '@/src/queries/useResenhaQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
 import {
   MAX_POST_LENGTH,
+  REACTION_EMOJIS,
   startsGroup,
+  type ReactionEmoji,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
 import { browserSupabase, signInWithGoogle } from '@/src/lib/supabase-browser';
@@ -56,62 +68,202 @@ function when(iso: string): string {
     : dayAndTime.format(date);
 }
 
-function Message({
+const ACTION =
+  'flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-foreground/10 hover:text-foreground';
+
+/** Reply, react, delete: shown on hover/focus, or on tap on phones */
+function MessageActions({
   post,
-  first,
+  canPost,
+  onReply,
+  onReact,
   onDelete,
 }: {
   post: ResenhaPostView;
-  first: boolean;
-  onDelete: (post: ResenhaPostView) => void;
+  canPost: boolean;
+  onReply: () => void;
+  onReact: (emoji: ReactionEmoji) => void;
+  onDelete: () => void;
 }) {
+  if (!canPost && !post.canDelete) return null;
   return (
-    <li
-      aria-label={`Mensagem de ${post.author.name}`}
-      className={cn(
-        'group relative flex gap-3 rounded-md px-2 py-0.5 hover:bg-foreground/5',
-        first && 'mt-3 pt-1'
-      )}
+    <div
+      role="toolbar"
+      aria-label="Ações da mensagem"
+      className="pointer-events-none absolute -top-3 right-2 flex gap-0.5 rounded-md border border-border bg-popover p-0.5 opacity-0 shadow-card transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 group-data-[active=true]:pointer-events-auto group-data-[active=true]:opacity-100 focus-within:pointer-events-auto focus-within:opacity-100"
     >
-      <div className="w-9 shrink-0">
-        {first && (
-          <PlayerAvatar
-            name={post.author.name}
-            src={post.author.avatarUrl}
-            className="size-9"
-          />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        {first && (
-          <p className="flex items-baseline gap-2">
-            <span className="font-semibold">{post.author.name}</span>
-            <time
-              dateTime={post.createdAt}
-              className="text-xs text-muted-foreground"
+      {canPost && (
+        <>
+          <Popover.Root>
+            <Popover.Trigger
+              aria-label="Reagir"
+              title="Reagir"
+              className={ACTION}
             >
-              {when(post.createdAt)}
-            </time>
-          </p>
-        )}
-        <p className="whitespace-pre-wrap break-words">{post.text}</p>
-      </div>
+              <SmilePlus className="size-4" aria-hidden="true" />
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                align="end"
+                sideOffset={6}
+                aria-label="Escolher reação"
+                className="z-50 flex gap-0.5 rounded-md border border-border bg-popover p-1 shadow-card"
+              >
+                {REACTION_EMOJIS.map((emoji) => (
+                  <Popover.Close
+                    key={emoji}
+                    aria-label={`Reagir com ${emoji}`}
+                    onClick={() => onReact(emoji)}
+                    className="flex size-9 items-center justify-center rounded-md text-xl hover:bg-foreground/10"
+                  >
+                    {emoji}
+                  </Popover.Close>
+                ))}
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <button
+            type="button"
+            aria-label="Responder"
+            title="Responder"
+            onClick={onReply}
+            className={ACTION}
+          >
+            <Reply className="size-4" aria-hidden="true" />
+          </button>
+        </>
+      )}
       {post.canDelete && (
         <button
           type="button"
           aria-label="Apagar mensagem"
           title="Apagar mensagem"
-          onClick={() => onDelete(post)}
-          className="absolute right-2 top-1 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+          onClick={onDelete}
+          className={ACTION}
         >
           <Trash2 className="size-4" aria-hidden="true" />
         </button>
       )}
+    </div>
+  );
+}
+
+function Message({
+  post,
+  first,
+  active,
+  canPost,
+  onSelect,
+  onReply,
+  onReact,
+  onDelete,
+}: {
+  post: ResenhaPostView;
+  first: boolean;
+  active: boolean;
+  canPost: boolean;
+  onSelect: () => void;
+  onReply: () => void;
+  onReact: (emoji: ReactionEmoji) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <li
+      aria-label={`Mensagem de ${post.author.name}`}
+      data-active={active}
+      onClick={onSelect}
+      className={cn(
+        'group relative rounded-md px-2 py-0.5 hover:bg-foreground/5 data-[active=true]:bg-foreground/5',
+        first && 'mt-3 pt-1'
+      )}
+    >
+      {post.replyTo && (
+        <p
+          aria-label={`Respondendo a ${post.replyTo.authorName}`}
+          className="mb-0.5 ml-5 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground"
+        >
+          <CornerUpLeft
+            className="size-3.5 shrink-0 -scale-x-100 opacity-70"
+            aria-hidden="true"
+          />
+          <span className="shrink-0 font-medium text-foreground/80">
+            {post.replyTo.authorName}
+          </span>
+          <span className="truncate">{post.replyTo.preview}</span>
+        </p>
+      )}
+      <div className="flex gap-3">
+        <div className="w-9 shrink-0">
+          {first && (
+            <PlayerAvatar
+              name={post.author.name}
+              src={post.author.avatarUrl}
+              className="size-9"
+            />
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          {first && (
+            <p className="flex items-baseline gap-2">
+              <span className="font-semibold">{post.author.name}</span>
+              <time
+                dateTime={post.createdAt}
+                className="text-xs text-muted-foreground"
+              >
+                {when(post.createdAt)}
+              </time>
+            </p>
+          )}
+          <p className="whitespace-pre-wrap break-words">{post.text}</p>
+          {post.reactions.length > 0 && (
+            <ul aria-label="Reações" className="mt-1 flex flex-wrap gap-1">
+              {post.reactions.map((r) => (
+                <li key={r.emoji}>
+                  <button
+                    type="button"
+                    aria-label={`${r.emoji} ${r.count}`}
+                    aria-pressed={r.mine}
+                    disabled={!canPost}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onReact(r.emoji);
+                    }}
+                    className={cn(
+                      'flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm disabled:cursor-default',
+                      r.mine
+                        ? 'border-primary/60 bg-primary/10'
+                        : 'border-border bg-card hover:border-foreground/30'
+                    )}
+                  >
+                    <span>{r.emoji}</span>
+                    <span className="text-muted-foreground">{r.count}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      <MessageActions
+        post={post}
+        canPost={canPost}
+        onReply={onReply}
+        onReact={onReact}
+        onDelete={onDelete}
+      />
     </li>
   );
 }
 
-function Composer({ session }: { session: Session }) {
+function Composer({
+  session,
+  replyingTo,
+  onCancelReply,
+}: {
+  session: Session;
+  replyingTo: ResenhaPostView | null;
+  onCancelReply: () => void;
+}) {
   const [text, setText] = useState('');
   const send = useSendPost(session);
   const trimmed = text.trim();
@@ -120,7 +272,10 @@ function Composer({ session }: { session: Session }) {
     if (!trimmed || send.isPending) return;
     // Cleared at once, like a chat; given back if it couldn't be sent
     setText('');
-    send.mutate(trimmed, { onError: () => setText(text) });
+    send.mutate(
+      { text: trimmed, replyToId: replyingTo?.id },
+      { onSuccess: onCancelReply, onError: () => setText(text) }
+    );
   }
 
   return (
@@ -132,6 +287,24 @@ function Composer({ session }: { session: Session }) {
         submit();
       }}
     >
+      {replyingTo && (
+        <div className="flex items-center justify-between gap-2 rounded-md bg-foreground/5 px-3 py-1.5 text-sm text-muted-foreground">
+          <p className="truncate">
+            Respondendo a{' '}
+            <span className="font-medium text-foreground">
+              {replyingTo.author.name}
+            </span>
+          </p>
+          <button
+            type="button"
+            aria-label="Cancelar resposta"
+            onClick={onCancelReply}
+            className="rounded-md p-0.5 hover:text-foreground"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-2 rounded-md border border-border bg-card p-2">
         <label htmlFor="mensagem" className="sr-only">
           Mensagem
@@ -149,6 +322,7 @@ function Composer({ session }: { session: Session }) {
               e.preventDefault();
               submit();
             }
+            if (e.key === 'Escape') onCancelReply();
           }}
           className="max-h-40 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 outline-none placeholder:text-muted-foreground"
         />
@@ -186,8 +360,13 @@ function Chat({ session }: { session: Session }) {
   const me = useMeQuery(session);
   const posts = useResenhaQuery(session);
   const remove = useDeletePost(session);
+  const react = useToggleReaction(session);
   const [deleting, setDeleting] = useState<ResenhaPostView | null>(null);
+  const [replyingTo, setReplyingTo] = useState<ResenhaPostView | null>(null);
+  // Phones have no hover: a tap shows that message's actions
+  const [activeId, setActiveId] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
+  const canPost = me.data?.canPost ?? false;
 
   // Oldest first, like a chat
   const messages = (posts.data?.pages ?? [])
@@ -206,7 +385,7 @@ function Chat({ session }: { session: Session }) {
     <Card className="flex h-[calc(100dvh-14rem)] min-h-96 flex-col gap-3 p-3 sm:p-4">
       <div
         ref={scroller}
-        className="-mx-1 flex-1 overflow-y-auto px-1"
+        className="-mx-1 flex-1 overflow-y-auto px-1 pt-3"
         aria-busy={posts.isPending}
       >
         {posts.hasNextPage && (
@@ -243,16 +422,29 @@ function Chat({ session }: { session: Session }) {
               <Message
                 key={post.id}
                 post={post}
-                first={groups[i]}
-                onDelete={setDeleting}
+                // A reply always starts a block, like Discord
+                first={groups[i] || post.replyTo !== null}
+                active={activeId === post.id}
+                canPost={canPost}
+                onSelect={() => setActiveId(post.id)}
+                onReply={() => {
+                  setReplyingTo(post);
+                  document.getElementById('mensagem')?.focus();
+                }}
+                onReact={(emoji) => react.mutate({ id: post.id, emoji })}
+                onDelete={() => setDeleting(post)}
               />
             ))}
           </ol>
         )}
       </div>
 
-      {me.data?.canPost ? (
-        <Composer session={session} />
+      {canPost ? (
+        <Composer
+          session={session}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
+        />
       ) : (
         <p className="rounded-md border border-border px-3 py-2 text-sm text-muted-foreground">
           {me.isPending

@@ -1,7 +1,7 @@
 /**
  * API Route: /api/posts (Bearer = Supabase access token)
  *   GET  ?before=<post id>  Resenha page, newest first (signed-in only)
- *   POST { text }           New message (allowlist only, 10 a minute)
+ *   POST { text, replyToId? } New message (allowlist only, 10 a minute)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -49,9 +49,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(await createPost(author, parsed.data.text), {
-      status: 201,
-    });
+    return NextResponse.json(
+      await createPost(author, parsed.data.text, parsed.data.replyToId),
+      {
+        status: 201,
+      }
+    );
   } catch (error) {
     return errorResponse(error, 'Posts API');
   }
