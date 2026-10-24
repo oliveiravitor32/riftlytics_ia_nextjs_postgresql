@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { config } from 'dotenv';
 import { configureRiotForTests } from './riot-env';
 import { withGeminiMock } from './gemini-mock/server';
@@ -25,6 +25,8 @@ process.env.GEMINI_API_KEY = 'mock';
 // Sign-in goes to a fake Supabase Auth (jest/supabase-mock), never the real one
 process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_TEST_URL;
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'mock';
+// Its own Resenha key: tests never read posts encrypted with the real one
+process.env.RESENHA_KEY = randomBytes(32).toString('base64');
 globalThis.__nodeFetch = withSupabaseMock(
   withGeminiMock(withRiotMock(globalThis.__nodeFetch))
 );

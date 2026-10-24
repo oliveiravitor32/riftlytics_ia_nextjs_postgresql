@@ -171,7 +171,8 @@ Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 - **LevelSnapshot** (`level_snapshots`): summoner level per player and game day, saved with the PDL snapshot; feeds the daily summary's countdown to level 30.
 - **SummarySent** (`summary_sent`): game days whose summary was already sent; `bot/send.mjs` skips a day found here (two triggers, one message).
 - **MatchupTip** (`matchup_tips`): AI lane tips per champion pair (alphabetical `champA`/`champB`, so A×B and B×A share a row), `rows` JSON, `expiresAt` = 2 months; regenerated on the next request after that.
-- **PostingAllowlist** (`posting_allowlist`): emails allowed to post in the Resenha (allowlist only: anyone signs in with Google and reads, only listed emails post). Added by hand (Prisma Studio / Supabase dashboard); checked on every post (`requirePoster` in `src/services/authService.ts`).
+- **PostingAllowlist** (`posting_allowlist`): emails allowed to post in the Resenha (allowlist only: anyone signs in with Google and reads, only listed emails post). Added by hand (Prisma Studio / Supabase dashboard); checked on every post (`requirePoster` in `src/services/authService.ts`). `admin = true` can delete anyone's post.
+- **ResenhaAuthor** / **ResenhaPost** (`resenha_authors`, `resenha_posts`): the Resenha (group chat). LGPD: no email stored; author = Supabase user id; name, photo URL and message text encrypted by the app (AES-256-GCM, `RESENHA_KEY`, `src/lib/resenha-crypto.ts`). Deleting removes the row.
 - **BotSession** (`bot_session`): WhatsApp bot session (Baileys auth state), one encrypted row per key; only `bot/` reads it.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
 
@@ -212,6 +213,7 @@ INNGEST_SIGNING_KEY=
 OPENAI_API_KEY=                   # For Phase 3 (AI analysis)
 GEMINI_API_KEY=                   # Google AI Studio (free tier): matchup tips
 GEMINI_MODEL=                     # optional, default gemini-flash-latest
+RESENHA_KEY=                      # 32 bytes base64: encrypts Resenha posts/names (never change it: old posts become unreadable)
 ```
 
 ### API Endpoints
@@ -224,6 +226,9 @@ POST   /api/refresh/[summonerName]    - Forced reload of a group player: rank, t
 GET    /api/cron/fechamento           - Daily close: final PDL snapshot + new matches (GitHub Actions, Bearer CRON_SECRET)
 GET    /api/matchup?a=&b=          - Lane tips for two champions (ids = Riot championName): DB first, else Gemini (free tier); 10 new pairs/hour per IP
 GET    /api/me                        - Signed-in account (Bearer = Supabase access token) + canPost (allowlist)
+GET    /api/posts?before=             - Resenha page, newest first (signed-in only)
+POST   /api/posts                     - New Resenha message { text } (allowlist only, 10/min per person)
+DELETE /api/posts/[id]                - Delete a message (author or admin)
 GET    /api/resumo                    - Daily WhatsApp summary text, ?dia=AAAA-MM-DD (Bearer CRON_SECRET; null on a quiet day)
 ```
 

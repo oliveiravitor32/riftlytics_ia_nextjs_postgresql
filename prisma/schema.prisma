@@ -176,7 +176,37 @@ model PostingAllowlist {
   // Lowercase, as Google reports it
   email     String   @id
   note      String?
+  // Can delete anyone's post in the Resenha (moderation)
+  admin     Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@map("posting_allowlist")
+}
+
+// Resenha (group chat). LGPD: no email is stored here; the author is the
+// Supabase user id, and every personal or written field is encrypted by the
+// app (AES-256-GCM, RESENHA_KEY; src/lib/resenha-crypto.ts). Deleting a post
+// removes the row.
+model ResenhaAuthor {
+  // Supabase Auth user id
+  id        String        @id
+  // Encrypted: Google name and photo URL, refreshed on every post
+  name      String
+  avatarUrl String?
+  updatedAt DateTime      @updatedAt
+  posts     ResenhaPost[]
+
+  @@map("resenha_authors")
+}
+
+model ResenhaPost {
+  id        String        @id @default(cuid())
+  authorId  String
+  author    ResenhaAuthor @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  // Encrypted message text
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("resenha_posts")
 }
