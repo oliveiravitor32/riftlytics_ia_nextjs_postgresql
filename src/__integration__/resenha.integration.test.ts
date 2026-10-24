@@ -7,9 +7,13 @@ import { NextRequest } from 'next/server';
 import { GET, POST } from '@/src/app/api/posts/route';
 import { DELETE } from '@/src/app/api/posts/[id]/route';
 import { POST as REACT } from '@/src/app/api/posts/[id]/reactions/route';
+import { GET as COUNTS } from '@/src/app/api/posts/counts/route';
+import { championImage, queueLabel } from '@/src/lib/match-transformers';
+import { profileHref } from '@/src/lib/riot-id';
 import { prisma } from '@/src/lib/db';
 import { encryptField } from '@/src/lib/resenha-crypto';
 import {
+  MAX_COUNT_IDS,
   MAX_POST_LENGTH,
   POSTS_PAGE_SIZE,
   POSTS_PER_MINUTE,
@@ -54,6 +58,13 @@ const remove = (token: string | undefined, id: string) =>
       headers: auth(token),
     }),
     { params: Promise.resolve({ id }) }
+  );
+
+const counts = (token: string | undefined, ids: string) =>
+  COUNTS(
+    new NextRequest(`http://localhost/api/posts/counts?ids=${ids}`, {
+      headers: auth(token),
+    })
   );
 
 const react = (token: string | undefined, id: string, emoji: string) =>
@@ -323,5 +334,93 @@ describe('reactions', () => {
     await remove(tokenFor(ADMIN), id);
 
     expect(await prisma.resenhaReaction.count()).toBe(0);
+  });
+});
+
+describe('commenting a match', () => {
+  const MATCH_ID = 'BR1_RESENHA_TESTE';
+  const RIOT_ID = 'Alfa#TST';
+
+  beforeAll(async () => {
+    const player = await prisma.player.findFirstOrThrow({
+      where: { gameName: 'Alfa', tagLine: 'TST' },
+    });
+    // A minimal stored match: only the card's line is read here
+    await prisma.match.create({
+      data: {
+        id: MATCH_ID,
+        queueId: 420,
+        gameCreation: new Date(),
+        gameDuration: 1800,
+        data: {},
+        players: {
+          create: {
+            playerId: player.id,
+            playedAt: new Date(),
+            queueId: 420,
+            championName: 'Yasuo',
+            position: 'MIDDLE',
+            win: false,
+            kills: 0,
+            deaths: 10,
+            assists: 1,
+          },
+        },
+      },
+    });
+  });
+  afterAll(async () => {
+    await prisma.resenhaPost.deleteMany();
+    // Its data isn't a real match: never leave it for later test files
+    await prisma.match.delete({ where: { id: MATCH_ID } });
+  });
+
+  const comment = (token: string, match: unknown) =>
+    send(token, { text: 'Que Yasuo criminoso! XD', match });
+
+  it('the post carries a small card of the match, linking to the profile', async () => {
+    const post: ResenhaPostView = await (
+      await comment(tokenFor(POSTER), { matchId: MATCH_ID, riotId: RIOT_ID })
+    ).json();
+
+    expect(post.match).toEqual({
+      matchId: MATCH_ID,
+      playerName: expect.any(String),
+      profileHref: profileHref('br1', 'Alfa', 'TST'),
+      champion: 'Yasuo',
+      championImage: championImage('Yasuo'),
+      queue: queueLabel(420),
+      kda: '0/10/1',
+      win: false,
+    });
+  });
+
+  it.each([
+    ['a match not stored', { matchId: 'BR1_NAO_EXISTE', riotId: RIOT_ID }],
+    [
+      'someone outside the group',
+      { matchId: MATCH_ID, riotId: 'Forasteiro#FORA' },
+    ],
+    ['a malformed Riot ID', { matchId: MATCH_ID, riotId: 'semtag' }],
+  ])('400 for %s', async (_, match) => {
+    expect((await comment(tokenFor(POSTER), match)).status).toBe(400);
+  });
+
+  it("counts each match's messages for the cards (signed-in only)", async () => {
+    const token = tokenFor(POSTER);
+    await comment(token, { matchId: MATCH_ID, riotId: RIOT_ID });
+    await comment(token, { matchId: MATCH_ID, riotId: RIOT_ID });
+    await send(token, { text: 'sem partida' });
+
+    const res = await counts(token, `${MATCH_ID},BR1_SEM_COMENTARIO`);
+    expect(await res.json()).toEqual({ [MATCH_ID]: 2 });
+
+    expect((await counts(undefined, MATCH_ID)).status).toBe(401);
+    expect((await counts(token, '')).status).toBe(400);
+    const tooMany = Array.from(
+      { length: MAX_COUNT_IDS + 1 },
+      (_, i) => `M${i}`
+    );
+    expect((await counts(token, tooMany.join(','))).status).toBe(400);
   });
 });

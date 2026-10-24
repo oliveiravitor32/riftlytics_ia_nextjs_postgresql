@@ -15,6 +15,7 @@ import { GET as matchupRoute } from '@/src/app/api/matchup/route';
 import { GET as meRoute } from '@/src/app/api/me/route';
 import * as postsRoute from '@/src/app/api/posts/route';
 import * as postRoute from '@/src/app/api/posts/[id]/route';
+import * as countsRoute from '@/src/app/api/posts/counts/route';
 import * as reactionsRoute from '@/src/app/api/posts/[id]/reactions/route';
 
 type Handler = (
@@ -32,6 +33,7 @@ const ROUTES: [RegExp, Route][] = [
   [/^\/api\/refresh\/([^/?]+)/, refreshRoute],
   [/^\/api\/matchup(\?|$)()/, matchupRoute],
   [/^\/api\/me$()/, meRoute],
+  [/^\/api\/posts\/counts(\?|$)()/, countsRoute],
   [/^\/api\/posts\/([^/?]+)\/reactions$/, reactionsRoute],
   [/^\/api\/posts\/([^/?]+)$/, postRoute],
   [/^\/api\/posts(\?|$)()/, postsRoute],

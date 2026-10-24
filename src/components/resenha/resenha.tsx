@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type { Session } from '@supabase/supabase-js';
 import { Popover } from 'radix-ui';
 import {
@@ -36,6 +37,7 @@ import {
   MAX_POST_LENGTH,
   REACTION_EMOJIS,
   startsGroup,
+  type MatchRefView,
   type ReactionEmoji,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
@@ -66,6 +68,48 @@ function when(iso: string): string {
   return day.format(date) === day.format(new Date())
     ? time.format(date)
     : dayAndTime.format(date);
+}
+
+/** The match a message comments on, linking to the player's profile */
+function MatchChip({ match }: { match: MatchRefView }) {
+  return (
+    <Link
+      href={match.profileHref}
+      aria-label={`Partida de ${match.playerName}: ${match.champion} ${match.kda}, ${match.win ? 'vitória' : 'derrota'}`}
+      onClick={(e) => e.stopPropagation()}
+      className={cn(
+        'my-1 flex w-fit max-w-full items-center gap-2 rounded-md border border-l-4 border-border px-2 py-1 text-sm hover:border-foreground/30',
+        match.win
+          ? 'border-l-blue-500 bg-blue-500/10'
+          : 'border-l-rose-500 bg-rose-500/10'
+      )}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- Data Dragon CDN */}
+      <img
+        src={match.championImage}
+        alt=""
+        className="size-7 shrink-0 rounded-full"
+      />
+      <span className="truncate">
+        <span className="font-medium">{match.playerName}</span>{' '}
+        <span className="text-muted-foreground">de</span> {match.champion}
+      </span>
+      <span className="shrink-0 font-semibold">{match.kda}</span>
+      <span
+        className={cn(
+          'shrink-0 text-xs font-semibold',
+          match.win
+            ? 'text-blue-600 dark:text-blue-400'
+            : 'text-rose-600 dark:text-rose-400'
+        )}
+      >
+        {match.win ? 'Vitória' : 'Derrota'}
+      </span>
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+        {match.queue}
+      </span>
+    </Link>
+  );
 }
 
 const ACTION =
@@ -214,6 +258,7 @@ function Message({
               </time>
             </p>
           )}
+          {post.match && <MatchChip match={post.match} />}
           <p className="whitespace-pre-wrap break-words">{post.text}</p>
           {post.reactions.length > 0 && (
             <ul aria-label="Reações" className="mt-1 flex flex-wrap gap-1">

@@ -15,16 +15,21 @@ import {
   replyPreview,
   summarizeReactions,
   type ReactionEmoji,
+  type MatchRefView,
   type ReactionView,
   type ResenhaPage,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
+import { championImage, queueLabel } from '@/src/lib/match-transformers';
+import { parseRiotId, profileHref } from '@/src/lib/riot-id';
 import { isAdmin, type SessionUser } from './authService';
+import { findTrackedPlayer } from './playerService';
 
 const include = {
   author: true,
   replyTo: { include: { author: true } },
   reactions: { select: { userId: true, emoji: true } },
+  matchRef: { include: { player: true } },
 } as const;
 
 interface StoredAuthor {
@@ -40,6 +45,38 @@ interface StoredPost {
   author: StoredAuthor;
   replyTo: { id: string; body: string; author: StoredAuthor } | null;
   reactions: { userId: string; emoji: string }[];
+  matchRef: {
+    matchId: string;
+    queueId: number;
+    championName: string;
+    win: boolean;
+    kills: number;
+    deaths: number;
+    assists: number;
+    player: {
+      displayName: string;
+      gameName: string;
+      tagLine: string;
+      region: string;
+    };
+  } | null;
+}
+
+function toMatchView(ref: NonNullable<StoredPost['matchRef']>): MatchRefView {
+  return {
+    matchId: ref.matchId,
+    playerName: ref.player.displayName,
+    profileHref: profileHref(
+      ref.player.region,
+      ref.player.gameName,
+      ref.player.tagLine
+    ),
+    champion: ref.championName,
+    championImage: championImage(ref.championName),
+    queue: queueLabel(ref.queueId),
+    kda: `${ref.kills}/${ref.deaths}/${ref.assists}`,
+    win: ref.win,
+  };
 }
 
 function toView(
@@ -65,6 +102,7 @@ function toView(
       preview: replyPreview(decryptField(post.replyTo.body)),
     },
     reactions: summarizeReactions(post.reactions, viewer.id),
+    match: post.matchRef && toMatchView(post.matchRef),
   };
 }
 
@@ -91,7 +129,8 @@ export async function listPosts(
 export async function createPost(
   author: SessionUser,
   text: string,
-  replyToId?: string
+  replyToId?: string,
+  match?: { matchId: string; riotId: string }
 ): Promise<ResenhaPostView> {
   if (
     replyToId &&
@@ -99,6 +138,7 @@ export async function createPost(
   ) {
     throw new AppError('A mensagem respondida foi apagada', 400);
   }
+  const matchRef = match ? await findMatchLine(match) : undefined;
   // Name and photo as Google has them now (encrypted again on every post)
   const profile = {
     name: encryptField(author.name),
@@ -110,10 +150,48 @@ export async function createPost(
     update: profile,
   });
   const post = await prisma.resenhaPost.create({
-    data: { authorId: author.id, body: encryptField(text), replyToId },
+    data: {
+      authorId: author.id,
+      body: encryptField(text),
+      replyToId,
+      matchId: matchRef?.matchId,
+      matchPlayerId: matchRef?.playerId,
+    },
     include,
   });
   return toView(post, author, await isAdmin(author.email));
+}
+
+/** A group member's stored line in a match, or 400 */
+async function findMatchLine({
+  matchId,
+  riotId,
+}: {
+  matchId: string;
+  riotId: string;
+}) {
+  const id = parseRiotId(riotId);
+  const player = id && (await findTrackedPlayer(id.gameName, id.tagLine));
+  const line =
+    player &&
+    (await prisma.playerMatch.findUnique({
+      where: { playerId_matchId: { playerId: player.id, matchId } },
+      select: { playerId: true, matchId: true },
+    }));
+  if (!line) throw new AppError('Partida não encontrada', 400);
+  return line;
+}
+
+/** How many messages comment each match (ids not commented are left out) */
+export async function countByMatch(
+  matchIds: string[]
+): Promise<Record<string, number>> {
+  const rows = await prisma.resenhaPost.groupBy({
+    by: ['matchId'],
+    where: { matchId: { in: matchIds } },
+    _count: { _all: true },
+  });
+  return Object.fromEntries(rows.map((r) => [r.matchId!, r._count._all]));
 }
 
 export async function deletePost(viewer: SessionUser, id: string) {

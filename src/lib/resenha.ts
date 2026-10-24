@@ -25,7 +25,26 @@ export const newPostSchema = z.object({
     .min(1, 'Escreva alguma coisa')
     .max(MAX_POST_LENGTH, `No máximo ${MAX_POST_LENGTH} caracteres`),
   replyToId: z.string().min(1).optional(),
+  /** "Mandar pra resenha" from a match card: whose card and which match */
+  match: z
+    .object({ matchId: z.string().min(1), riotId: z.string().min(3) })
+    .optional(),
 });
+
+/** The match a post comments on, as a small card linking to the profile */
+export interface MatchRefView {
+  matchId: string;
+  playerName: string;
+  profileHref: string;
+  champion: string;
+  championImage: string;
+  queue: string;
+  kda: string;
+  win: boolean;
+}
+
+/** Messages per match id (the cards' comment counters) */
+export const MAX_COUNT_IDS = 50;
 
 export const reactionSchema = z.object({ emoji: z.enum(REACTION_EMOJIS) });
 
@@ -73,6 +92,7 @@ export interface ResenhaPostView {
   /** The message it answers, still there (null if none or deleted) */
   replyTo: { id: string; authorName: string; preview: string } | null;
   reactions: ReactionView[];
+  match: MatchRefView | null;
 }
 
 export interface ResenhaPage {

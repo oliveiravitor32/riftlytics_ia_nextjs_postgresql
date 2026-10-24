@@ -23,3 +23,12 @@ export function profileHref(
 ): string {
   return `/perfil/${region}/${toRiotSlug(gameName, tagLine)}`;
 }
+
+/** "Name#TAG" → its parts, or null (the last "#" splits, like the slug) */
+export function parseRiotId(
+  riotId: string
+): { gameName: string; tagLine: string } | null {
+  const hash = riotId.lastIndexOf('#');
+  if (hash <= 0 || hash === riotId.length - 1) return null;
+  return { gameName: riotId.slice(0, hash), tagLine: riotId.slice(hash + 1) };
+}
