@@ -7,6 +7,7 @@ import { THEME_PROVIDER_PROPS } from '@/src/lib/theme';
 import { QueryProvider } from '../providers/query-provider';
 import '../styles/globals.css';
 import { Inter } from 'next/font/google';
+import Link from 'next/link';
 import { cn } from '@/lib/utils';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
@@ -36,6 +37,20 @@ export default function RootLayout({
           <QueryProvider>
             <Header />
             <main id="conteudo">{children}</main>
+            {/* Google's sign-in asks for these links on the home page */}
+            <footer className="border-t border-border px-4 py-6 text-sm text-muted-foreground">
+              <nav
+                aria-label="Informações legais"
+                className="mx-auto flex max-w-5xl gap-4"
+              >
+                <Link href="/privacidade" className="hover:text-foreground">
+                  Privacidade
+                </Link>
+                <Link href="/termos" className="hover:text-foreground">
+                  Termos
+                </Link>
+              </nav>
+            </footer>
           </QueryProvider>
         </ThemeProvider>
       </body>

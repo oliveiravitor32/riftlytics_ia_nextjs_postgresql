@@ -168,3 +168,15 @@ model MatchupTip {
   @@id([champA, champB])
   @@map("matchup_tips")
 }
+
+// Who may post in the Resenha: an allowlist, never a blocklist. Anyone can
+// sign in with Google and read; only an email listed here can post. Rows are
+// added by hand (Prisma Studio / Supabase dashboard), never by the app.
+model PostingAllowlist {
+  // Lowercase, as Google reports it
+  email     String   @id
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@map("posting_allowlist")
+}

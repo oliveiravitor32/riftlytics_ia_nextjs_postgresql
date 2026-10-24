@@ -4,6 +4,7 @@ import { config } from 'dotenv';
 import { configureRiotForTests } from './riot-env';
 import { withGeminiMock } from './gemini-mock/server';
 import { withRiotMock } from './riot-mock/server';
+import { SUPABASE_TEST_URL, withSupabaseMock } from './supabase-mock/server';
 
 // Same real credentials as the integration suite (.env.local, local only)
 config({ path: '.env.local', quiet: true });
@@ -21,7 +22,12 @@ configureRiotForTests();
 // Never the real key: a test can't spend the free Gemini quota
 process.env.GEMINI_API_KEY = 'mock';
 // Server code's network calls (bridge fallback): Riot answers are mocked
-globalThis.__nodeFetch = withGeminiMock(withRiotMock(globalThis.__nodeFetch));
+// Sign-in goes to a fake Supabase Auth (jest/supabase-mock), never the real one
+process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_TEST_URL;
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'mock';
+globalThis.__nodeFetch = withSupabaseMock(
+  withGeminiMock(withRiotMock(globalThis.__nodeFetch))
+);
 
 // Browser APIs jsdom lacks (environment gaps, not app behavior):
 // recharts' ResponsiveContainer measures itself with ResizeObserver
