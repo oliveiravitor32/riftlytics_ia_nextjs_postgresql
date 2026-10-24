@@ -11,13 +11,57 @@ export const POSTS_PER_MINUTE = 10;
 /** How often an open Resenha asks for new messages */
 export const RESENHA_POLL_MS = 10_000;
 
+/** The only reactions offered: a fixed set keeps it light and safe */
+export const REACTION_EMOJIS = ['😂', '🔥', '💀', '👏', '😡', '🤡'] as const;
+export type ReactionEmoji = (typeof REACTION_EMOJIS)[number];
+
+/** How much of the answered message a reply shows */
+export const REPLY_PREVIEW_LENGTH = 80;
+
 export const newPostSchema = z.object({
   text: z
     .string()
     .trim()
     .min(1, 'Escreva alguma coisa')
     .max(MAX_POST_LENGTH, `No máximo ${MAX_POST_LENGTH} caracteres`),
+  replyToId: z.string().min(1).optional(),
 });
+
+export const reactionSchema = z.object({ emoji: z.enum(REACTION_EMOJIS) });
+
+export interface ReactionView {
+  emoji: ReactionEmoji;
+  count: number;
+  /** The viewer reacted with it */
+  mine: boolean;
+}
+
+/** Reactions → one entry per emoji in use, in REACTION_EMOJIS order */
+export function summarizeReactions(
+  reactions: { userId: string; emoji: string }[],
+  viewerId: string
+): ReactionView[] {
+  return REACTION_EMOJIS.flatMap((emoji) => {
+    const users = reactions.filter((r) => r.emoji === emoji);
+    return users.length
+      ? [
+          {
+            emoji,
+            count: users.length,
+            mine: users.some((r) => r.userId === viewerId),
+          },
+        ]
+      : [];
+  });
+}
+
+/** First characters of the answered message, on one line */
+export function replyPreview(text: string): string {
+  const line = text.replace(/\s+/g, ' ').trim();
+  return line.length > REPLY_PREVIEW_LENGTH
+    ? `${line.slice(0, REPLY_PREVIEW_LENGTH - 1)}…`
+    : line;
+}
 
 export interface ResenhaPostView {
   id: string;
@@ -26,6 +70,9 @@ export interface ResenhaPostView {
   createdAt: string;
   /** The viewer wrote it, or is an admin */
   canDelete: boolean;
+  /** The message it answers, still there (null if none or deleted) */
+  replyTo: { id: string; authorName: string; preview: string } | null;
+  reactions: ReactionView[];
 }
 
 export interface ResenhaPage {

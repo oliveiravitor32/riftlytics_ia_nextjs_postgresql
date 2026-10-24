@@ -159,3 +159,97 @@ it('loads older messages on request', async () => {
 it('has a page title for the browser tab', () => {
   expect(metadata.title).toBe('Resenha');
 });
+
+describe('replies and reactions', () => {
+  beforeEach(() =>
+    prisma.postingAllowlist.create({ data: { email: 'vitor@gmail.com' } })
+  );
+
+  it('replies to a message: the reply quotes who it answers', async () => {
+    await seed('Que Yasuo criminoso!', 'Amigo');
+    signIn('vitor@gmail.com', 'Vitor');
+    const user = userEvent.setup();
+    renderApp(<ResenhaPage />);
+
+    const original = within(await messages()).getByRole('listitem', {
+      name: 'Mensagem de Amigo',
+    });
+    await user.click(
+      within(original).getByRole('button', { name: 'Responder' })
+    );
+    expect(screen.getByText(/Respondendo a/)).toHaveTextContent(
+      'Respondendo a Amigo'
+    );
+    await user.keyboard('kkkkk{Enter}');
+
+    const quote = await screen.findByLabelText('Respondendo a Amigo');
+    expect(quote).toHaveTextContent('Que Yasuo criminoso!');
+    expect(quote.closest('li')).toHaveTextContent('kkkkk');
+    // The bar above the box is gone after sending
+    expect(screen.queryByText(/^Respondendo a$/)).not.toBeInTheDocument();
+  });
+
+  it('Esc or the X cancels a reply', async () => {
+    await seed('oi', 'Amigo');
+    signIn('vitor@gmail.com', 'Vitor');
+    const user = userEvent.setup();
+    renderApp(<ResenhaPage />);
+
+    await user.click(
+      within(await messages()).getByRole('button', { name: 'Responder' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Cancelar resposta' }));
+    expect(
+      screen.queryByRole('button', { name: 'Cancelar resposta' })
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Responder' }));
+    await user.keyboard('{Escape}');
+    expect(
+      screen.queryByRole('button', { name: 'Cancelar resposta' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('reacts from the picker, then the chip takes it back', async () => {
+    await seed('jogada', 'Amigo');
+    signIn('vitor@gmail.com', 'Vitor');
+    const user = userEvent.setup();
+    renderApp(<ResenhaPage />);
+
+    await user.click(
+      within(await messages()).getByRole('button', { name: 'Reagir' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Reagir com 🔥' }));
+
+    const chip = await screen.findByRole('button', { name: '🔥 1' });
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+
+    await user.click(chip);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('button', { name: '🔥 1' })
+      ).not.toBeInTheDocument()
+    );
+    expect(await prisma.resenhaReaction.count()).toBe(0);
+  });
+
+  it('a reader sees reactions but cannot react or reply', async () => {
+    await prisma.postingAllowlist.deleteMany();
+    const post = await seed('jogada', 'Amigo');
+    await prisma.resenhaReaction.create({
+      data: { postId: post.id, userId: 'outra-conta', emoji: '😂' },
+    });
+    signIn('leitor@gmail.com', 'Leitor');
+    renderApp(<ResenhaPage />);
+
+    const chip = await screen.findByRole('button', { name: '😂 1' });
+    expect(chip).toBeDisabled();
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(
+      screen.queryByRole('button', { name: 'Responder' })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Reagir' })
+    ).not.toBeInTheDocument();
+  });
+});
