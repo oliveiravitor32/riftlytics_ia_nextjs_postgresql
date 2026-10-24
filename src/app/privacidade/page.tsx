@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Política de Privacidade" updated="23 de outubro de 2026">
+    <LegalPage title="Política de Privacidade" updated="24 de outubro de 2026">
       <p>
         O Riftlytics é um site sem fins lucrativos feito para um grupo de amigos
         acompanhar suas estatísticas de League of Legends. Esta página explica
@@ -31,10 +31,32 @@ export default function PrivacyPage() {
         arquivos, agenda nem nada além disso.
       </p>
 
-      <h2>O que você publica</h2>
+      <h2>Resenha</h2>
       <p>
-        Mensagens que você posta na Resenha ficam visíveis para quem acessa o
-        site, junto com seu nome e sua foto.
+        A Resenha só pode ser lida por quem entrou com o Google. Suas mensagens
+        aparecem para essas pessoas junto com seu nome e sua foto. Das reações,
+        aparece só quantas pessoas reagiram, não quem.
+      </p>
+      <p>Para proteger o que você escreve:</p>
+      <ul>
+        <li>
+          o texto das mensagens, seu nome e sua foto são guardados
+          criptografados (AES-256), ilegíveis para quem tiver acesso direto ao
+          banco de dados;
+        </li>
+        <li>seu e-mail não é guardado junto com as mensagens;</li>
+        <li>
+          apagar uma mensagem remove ela de verdade do banco, junto com as
+          reações; respostas a ela continuam, sem a citação.
+        </li>
+      </ul>
+
+      <h2>Para que usamos (base legal)</h2>
+      <p>
+        Tratamos esses dados com base no seu consentimento ao entrar com o
+        Google (LGPD, art. 7º, I), apenas para identificar você e fazer a
+        Resenha funcionar. Coletamos o mínimo necessário e não usamos os dados
+        para publicidade nem perfilamento.
       </p>
 
       <h2>Dados de League of Legends</h2>
@@ -57,9 +79,16 @@ export default function PrivacyPage() {
         anúncios.
       </p>
 
+      <h2>Seus direitos</h2>
+      <p>
+        Pela LGPD (art. 18), você pode pedir para ver, corrigir ou apagar seus
+        dados e retirar seu consentimento a qualquer momento.
+      </p>
+
       <h2>Apagar seus dados</h2>
       <p>
-        Para apagar sua conta e o que você publicou, escreva para{' '}
+        Você mesmo pode apagar suas mensagens na Resenha. Para apagar sua conta
+        e tudo o que publicou, escreva para{' '}
         <a className="underline" href={`mailto:${CONTACT_EMAIL}`}>
           {CONTACT_EMAIL}
         </a>

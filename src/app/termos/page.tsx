@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Termos de Serviço" updated="23 de outubro de 2026">
+    <LegalPage title="Termos de Serviço" updated="24 de outubro de 2026">
       <p>
         O Riftlytics é um projeto pessoal e gratuito, feito para um grupo de
         amigos. Ao usar o site, você concorda com estas regras.
@@ -16,15 +16,19 @@ export default function TermsPage() {
 
       <h2>Uso</h2>
       <ul>
-        <li>Qualquer pessoa pode ver as estatísticas e ler a Resenha.</li>
         <li>
-          Postar na Resenha é permitido só para contas liberadas pelo
-          administrador, que pode liberar ou retirar o acesso a qualquer
-          momento.
+          Qualquer pessoa pode ver as estatísticas. A Resenha pode ser lida por
+          quem entrar com o Google.
+        </li>
+        <li>
+          Postar, responder e reagir na Resenha é permitido só para contas
+          liberadas pelo administrador, que pode liberar ou retirar o acesso a
+          qualquer momento.
         </li>
         <li>
           Não publique conteúdo ilegal, ofensivo de verdade, com dados de outras
-          pessoas ou que não seja seu. Posts assim podem ser apagados.
+          pessoas ou que não seja seu. O administrador pode apagar qualquer
+          mensagem.
         </li>
       </ul>
 
