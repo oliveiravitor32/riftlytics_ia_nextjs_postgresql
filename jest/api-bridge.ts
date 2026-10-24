@@ -13,19 +13,26 @@ import { GET as matchesRoute } from '@/src/app/api/matches/[summonerName]/route'
 import { POST as refreshRoute } from '@/src/app/api/refresh/[summonerName]/route';
 import { GET as matchupRoute } from '@/src/app/api/matchup/route';
 import { GET as meRoute } from '@/src/app/api/me/route';
+import * as postsRoute from '@/src/app/api/posts/route';
+import * as postRoute from '@/src/app/api/posts/[id]/route';
 
 type Handler = (
   request: NextRequest,
-  context: { params: Promise<{ summonerName: string }> }
+  context: { params: Promise<{ summonerName: string; id: string }> }
 ) => Promise<Response>;
 
-const ROUTES: [RegExp, Handler][] = [
+/** A route file's handlers by method (GET-only routes are a bare handler) */
+type Route = Handler | Partial<Record<string, Handler>>;
+
+const ROUTES: [RegExp, Route][] = [
   [/^\/api\/profile\/([^/?]+)/, profileRoute],
   [/^\/api\/rank\/([^/?]+)/, rankRoute],
   [/^\/api\/matches\/([^/?]+)/, matchesRoute],
   [/^\/api\/refresh\/([^/?]+)/, refreshRoute],
   [/^\/api\/matchup(\?|$)()/, matchupRoute],
   [/^\/api\/me$()/, meRoute],
+  [/^\/api\/posts\/([^/?]+)/, postRoute],
+  [/^\/api\/posts(\?|$)()/, postsRoute],
 ];
 
 declare global {
@@ -40,15 +47,20 @@ export const bridgedFetch: typeof fetch = async (input, init) => {
 
   if (url.startsWith('/api/')) {
     apiCalls.push(url);
-    for (const [pattern, handler] of ROUTES) {
+    for (const [pattern, route] of ROUTES) {
       const match = url.match(pattern);
-      if (match) {
+      const method = init?.method ?? 'GET';
+      const handler = typeof route === 'function' ? route : route[method];
+      if (match && handler) {
         const request = new NextRequest(`http://localhost${url}`, {
           ...init,
           signal: init?.signal ?? undefined,
         });
         return handler(request, {
-          params: Promise.resolve({ summonerName: match[1] }),
+          params: Promise.resolve({
+            summonerName: match[1],
+            id: match[1],
+          }),
         });
       }
     }

@@ -22,6 +22,7 @@ export function isRateLimitError(error: unknown): error is ApiRequestError {
 /** Calls an /api route and parses its JSON, throwing ApiRequestError on failure */
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, init);
+  if (response.status === 204) return undefined as T;
   if (response.ok) return response.json();
 
   const body = await response.json().catch(() => ({}));
@@ -46,6 +47,20 @@ export const getJson = <T>(url: string, token?: string) =>
   );
 export const postJson = <T>(url: string) =>
   requestJson<T>(url, { method: 'POST' });
+
+/** Signed-in write: Bearer token, optional JSON body */
+export const sendJson = <T>(
+  url: string,
+  { method, token, body }: { method: string; token: string; body?: unknown }
+) =>
+  requestJson<T>(url, {
+    method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 
 /** react-query `retry`: up to 2 retries, except for rate limits */
 export function retryUnlessRateLimited(failureCount: number, error: Error) {

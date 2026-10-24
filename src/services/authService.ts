@@ -84,10 +84,23 @@ export async function canPost(email: string): Promise<boolean> {
   return row !== null;
 }
 
-/** The caller, if signed in and on the allowlist; 401 / 403 otherwise */
-export async function requirePoster(request: Request): Promise<SessionUser> {
+export async function isAdmin(email: string): Promise<boolean> {
+  const row = await prisma.postingAllowlist.findUnique({
+    where: { email: email.toLowerCase() },
+  });
+  return row?.admin ?? false;
+}
+
+/** The caller, or 401 (reading the Resenha needs a session) */
+export async function requireUser(request: Request): Promise<SessionUser> {
   const user = await getSessionUser(request);
   if (!user) throw new UnauthorizedError();
+  return user;
+}
+
+/** The caller, if signed in and on the allowlist; 401 / 403 otherwise */
+export async function requirePoster(request: Request): Promise<SessionUser> {
+  const user = await requireUser(request);
   if (!(await canPost(user.email))) throw new ForbiddenError();
   return user;
 }

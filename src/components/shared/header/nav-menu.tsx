@@ -8,6 +8,7 @@ const navItems = [
   { label: 'Início', href: '/' },
   { label: 'Ranking', href: '/ranking' },
   { label: 'Como jogar a matchup?', href: '/matchups' },
+  { label: 'Resenha', href: '/resenha' },
 ];
 
 export default function NavMenu() {
@@ -15,7 +16,7 @@ export default function NavMenu() {
 
   return (
     <nav aria-label="Navegação principal">
-      <ul className="flex items-center gap-4 whitespace-nowrap">
+      <ul className="flex items-center gap-3 whitespace-nowrap sm:gap-4">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
