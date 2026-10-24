@@ -1,3 +1,4 @@
+import type React from 'react';
 import { cn } from '@/lib/utils';
 
 export type MatchResult = 'win' | 'loss';
@@ -42,6 +43,8 @@ export type GameResumeMatch = {
 
 type GameResumeCardProps = {
   match: GameResumeMatch;
+  /** Extra row at the bottom (e.g. "Mandar pra resenha") */
+  actions?: React.ReactNode;
 };
 
 const ITEM_SLOTS = 6;
@@ -108,7 +111,10 @@ function Team({
   );
 }
 
-export default function GameResumeCard({ match }: GameResumeCardProps) {
+export default function GameResumeCard({
+  match,
+  actions,
+}: GameResumeCardProps) {
   const tone = TONES[match.result];
   const [kills, deaths, assists] = match.kda.split('/').map(Number);
   const ratio =
@@ -247,6 +253,12 @@ export default function GameResumeCard({ match }: GameResumeCardProps) {
         <Team players={blueTeam} playerName={match.playerName} />
         <Team players={redTeam} playerName={match.playerName} />
       </div>
+
+      {actions ? (
+        <div className="flex w-full items-center justify-end gap-3 border-t border-border pt-2 empty:hidden">
+          {actions}
+        </div>
+      ) : null}
     </article>
   );
 }

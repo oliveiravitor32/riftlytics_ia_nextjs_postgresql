@@ -7,6 +7,7 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import type { Session } from '@supabase/supabase-js';
@@ -20,6 +21,24 @@ import {
 import { getJson, sendJson } from './api-client';
 
 const KEY = ['resenha'] as const;
+
+/** Comments per match for a list of cards (signed in only) */
+export function useMatchCommentCounts(
+  session: Session | null | undefined,
+  matchIds: string[]
+) {
+  return useQuery({
+    queryKey: [...KEY, 'counts', matchIds.join(',')],
+    queryFn: () =>
+      getJson<Record<string, number>>(
+        `/api/posts/counts?ids=${matchIds.map(encodeURIComponent).join(',')}`,
+        session!.access_token
+      ),
+    enabled: Boolean(session) && matchIds.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+}
 
 export function useResenhaQuery(session: Session) {
   return useInfiniteQuery({
@@ -40,7 +59,11 @@ export function useResenhaQuery(session: Session) {
 export function useSendPost(session: Session) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: { text: string; replyToId?: string }) =>
+    mutationFn: (post: {
+      text: string;
+      replyToId?: string;
+      match?: { matchId: string; riotId: string };
+    }) =>
       sendJson<ResenhaPostView>('/api/posts', {
         method: 'POST',
         token: session.access_token,

@@ -163,7 +163,7 @@ function formatRelativeTime(timestamp: number): string {
   return `${daysAgo}d atrás`;
 }
 
-function queueLabel(queueId: number): string {
+export function queueLabel(queueId: number): string {
   switch (queueId) {
     case 420:
       return 'Ranqueada Solo/Duo';

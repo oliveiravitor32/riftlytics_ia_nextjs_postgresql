@@ -11,6 +11,10 @@ import { useMatchHistoryQuery } from '@/src/queries/useMatchHistoryQuery';
 import GameResumeCard from './game-resume-card';
 import { Button } from './ui/button';
 import { MatchListSkeleton } from './profile-skeletons';
+import { CommentMatch } from './resenha/comment-match';
+import { useSession } from '@/src/hooks/useSession';
+import { useMatchCommentCounts } from '@/src/queries/useResenhaQuery';
+import { MAX_COUNT_IDS } from '@/src/lib/resenha';
 
 const PAGE_SIZE = 10;
 
@@ -26,6 +30,12 @@ export function ProfileMatches({
     () => query.data?.pages.flatMap((p) => p.matches) ?? [],
     [query.data]
   );
+  const session = useSession();
+  // Newest cards first: the counter covers what's usually on screen
+  const ids = matches
+    .flatMap((m) => (m.matchId ? [m.matchId] : []))
+    .slice(0, MAX_COUNT_IDS);
+  const counts = useMatchCommentCounts(session, ids);
 
   if (query.isLoading) return <MatchListSkeleton />;
 
@@ -48,7 +58,19 @@ export function ProfileMatches({
         <ul className="space-y-3">
           {matches.map((match) => (
             <li key={match.matchId ?? `${match.champion}-${match.duration}`}>
-              <GameResumeCard match={match} />
+              <GameResumeCard
+                match={match}
+                actions={
+                  session && match.matchId ? (
+                    <CommentMatch
+                      session={session}
+                      match={{ ...match, matchId: match.matchId }}
+                      riotId={riotId}
+                      count={counts.data?.[match.matchId] ?? 0}
+                    />
+                  ) : null
+                }
+              />
             </li>
           ))}
         </ul>

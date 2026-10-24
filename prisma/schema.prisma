@@ -128,6 +128,8 @@ model PlayerMatch {
   deaths       Int
   assists      Int
 
+  resenhaPosts ResenhaPost[]
+
   @@id([playerId, matchId])
   @@index([playerId, playedAt(sort: Desc)])
   @@map("player_matches")
@@ -200,19 +202,26 @@ model ResenhaAuthor {
 }
 
 model ResenhaPost {
-  id        String            @id @default(cuid())
-  authorId  String
-  author    ResenhaAuthor     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  id            String            @id @default(cuid())
+  authorId      String
+  author        ResenhaAuthor     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   // Encrypted message text
-  body      String
+  body          String
   // The message this one answers (null if it was deleted)
-  replyToId String?
-  replyTo   ResenhaPost?      @relation("ResenhaReplies", fields: [replyToId], references: [id], onDelete: SetNull)
-  replies   ResenhaPost[]     @relation("ResenhaReplies")
-  reactions ResenhaReaction[]
-  createdAt DateTime          @default(now())
+  replyToId     String?
+  replyTo       ResenhaPost?      @relation("ResenhaReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies       ResenhaPost[]     @relation("ResenhaReplies")
+  reactions     ResenhaReaction[]
+  // A match commented from its card ("Mandar pra resenha"): the group
+  // member's line in it (public game data, not encrypted). Null if the
+  // match is ever removed.
+  matchId       String?
+  matchPlayerId String?
+  matchRef      PlayerMatch?      @relation(fields: [matchPlayerId, matchId], references: [playerId, matchId], onDelete: SetNull)
+  createdAt     DateTime          @default(now())
 
   @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([matchId])
   @@map("resenha_posts")
 }
 
