@@ -13,17 +13,17 @@ datasource db {
 
 // Tracked player (replaces the hardcoded preset list)
 model Player {
-  id          String  @id @default(cuid())
-  gameName    String
-  tagLine     String
-  region      String  @default("br1")
-  displayName String
+  id                 String    @id @default(cuid())
+  gameName           String
+  tagLine            String
+  region             String    @default("br1")
+  displayName        String
   // Photo shown on cards and ranking; null falls back to an icon
-  avatarUrl   String?
+  avatarUrl          String?
   // Riot PUUID, filled on first lookup (never changes)
-  puuid       String? @unique
+  puuid              String?   @unique
   // Hides a player without deleting its history
-  active      Boolean @default(true)
+  active             Boolean   @default(true)
   // Matches are stored without gaps from now back to this moment (older
   // stored ones came in through a teammate and may have gaps)
   matchesSyncedUntil DateTime?
@@ -31,8 +31,8 @@ model Player {
   pdlSnapshots   PDLSnapshot[]
   levelSnapshots LevelSnapshot[]
   matches        PlayerMatch[]
-  duoAnalysesA DuoAnalysis[] @relation("DuoPlayer1")
-  duoAnalysesB DuoAnalysis[] @relation("DuoPlayer2")
+  duoAnalysesA   DuoAnalysis[]   @relation("DuoPlayer1")
+  duoAnalysesB   DuoAnalysis[]   @relation("DuoPlayer2")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -200,13 +200,31 @@ model ResenhaAuthor {
 }
 
 model ResenhaPost {
-  id        String        @id @default(cuid())
+  id        String            @id @default(cuid())
   authorId  String
-  author    ResenhaAuthor @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  author    ResenhaAuthor     @relation(fields: [authorId], references: [id], onDelete: Cascade)
   // Encrypted message text
   body      String
-  createdAt DateTime      @default(now())
+  // The message this one answers (null if it was deleted)
+  replyToId String?
+  replyTo   ResenhaPost?      @relation("ResenhaReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ResenhaPost[]     @relation("ResenhaReplies")
+  reactions ResenhaReaction[]
+  createdAt DateTime          @default(now())
 
   @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@map("resenha_posts")
+}
+
+// One emoji from one account on one message (from REACTION_EMOJIS only)
+model ResenhaReaction {
+  postId    String
+  post      ResenhaPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  // Supabase Auth user id
+  userId    String
+  emoji     String
+  createdAt DateTime    @default(now())
+
+  @@id([postId, userId, emoji])
+  @@map("resenha_reactions")
 }

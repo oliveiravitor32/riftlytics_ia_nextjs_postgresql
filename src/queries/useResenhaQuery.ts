@@ -12,6 +12,8 @@ import {
 import type { Session } from '@supabase/supabase-js';
 import {
   RESENHA_POLL_MS,
+  type ReactionEmoji,
+  type ReactionView,
   type ResenhaPage,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
@@ -38,11 +40,11 @@ export function useResenhaQuery(session: Session) {
 export function useSendPost(session: Session) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (text: string) =>
+    mutationFn: (post: { text: string; replyToId?: string }) =>
       sendJson<ResenhaPostView>('/api/posts', {
         method: 'POST',
         token: session.access_token,
-        body: { text },
+        body: post,
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
@@ -56,6 +58,19 @@ export function useDeletePost(session: Session) {
         method: 'DELETE',
         token: session.access_token,
       }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+/** Adds or takes back the viewer's emoji on a message */
+export function useToggleReaction(session: Session) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, emoji }: { id: string; emoji: ReactionEmoji }) =>
+      sendJson<ReactionView[]>(
+        `/api/posts/${encodeURIComponent(id)}/reactions`,
+        { method: 'POST', token: session.access_token, body: { emoji } }
+      ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   });
 }
