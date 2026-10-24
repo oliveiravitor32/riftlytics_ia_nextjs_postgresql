@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Session } from '@supabase/supabase-js';
 import { Loader2, MessageSquare, MessageSquarePlus } from 'lucide-react';
@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '../ui/dialog';
 import type { GameResumeMatch } from '../game-resume-card';
+import { EmojiPicker } from './emoji-picker';
 import { useMeQuery } from '@/src/queries/useMeQuery';
 import { useSendPost } from '@/src/queries/useResenhaQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
@@ -37,6 +38,7 @@ export function CommentMatch({
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
   const [sent, setSent] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
   const trimmed = text.trim();
 
   function submit() {
@@ -74,9 +76,11 @@ export function CommentMatch({
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogTitle>Mandar pra resenha</DialogTitle>
-          <DialogDescription>
+        <DialogContent className="w-[min(92vw,32rem)] gap-3 rounded-md p-6">
+          <DialogTitle className="pr-10 text-lg font-semibold">
+            Mandar pra resenha
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
             {match.champion} · {match.kda} ·{' '}
             {match.result === 'win' ? 'Vitória' : 'Derrota'} · {match.queue}
           </DialogDescription>
@@ -91,6 +95,7 @@ export function CommentMatch({
               Comentário
             </label>
             <textarea
+              ref={box}
               id={`comentario-${match.matchId}`}
               rows={3}
               autoFocus
@@ -113,7 +118,8 @@ export function CommentMatch({
                   : 'Não deu para enviar. Tente de novo.'}
               </p>
             )}
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2">
+              <EmojiPicker target={box} value={text} onChange={setText} />
               <Button type="submit" disabled={!trimmed || send.isPending}>
                 {send.isPending && (
                   <Loader2 className="animate-spin" aria-hidden="true" />

@@ -80,11 +80,45 @@ it('a released account comments a match; the Resenha shows it with the match car
   unmount();
 
   renderApp(<ResenhaPage />);
-  const chip = await screen.findByRole('link', {
+  const chip = await screen.findByRole('button', {
     name: new RegExp(`^Partida de .*: ${champion} `),
   });
-  expect(chip.getAttribute('href')).toMatch(/^\/perfil\/br1\/Alfa-TST$/);
   expect(chip.closest('li')).toHaveTextContent('Que jogada!');
+  // The date, for a quick look
+  expect(chip.querySelector('time')).toHaveAttribute('dateTime');
+
+  // Clicking shows the whole match card without leaving the Resenha
+  await user.click(chip);
+  const cardDialog = await screen.findByRole('dialog', {
+    name: /^Partida de /,
+  });
+  expect(
+    await within(cardDialog).findByRole('article', {
+      name: new RegExp(` de ${champion}$`),
+    })
+  ).toBeInTheDocument();
+  expect(
+    within(cardDialog).getByRole('link', { name: /^Ver o perfil de / })
+  ).toHaveAttribute('href', '/perfil/br1/Alfa-TST');
+});
+
+it('the comment box has an emoji picker that inserts where the cursor is', async () => {
+  await prisma.postingAllowlist.create({ data: { email: 'vitor@gmail.com' } });
+  signIn('vitor@gmail.com');
+  const user = userEvent.setup();
+  renderApp(<ProfileMatches riotId={RIOT_ID} region="br1" />);
+
+  const [first] = await cards();
+  await user.click(
+    await within(first).findByRole('button', { name: 'Mandar pra resenha' })
+  );
+  const dialog = screen.getByRole('dialog', { name: 'Mandar pra resenha' });
+  const box = within(dialog).getByRole('textbox', { name: 'Comentário' });
+  await user.type(box, 'boa jogada');
+  await user.click(within(dialog).getByRole('button', { name: 'Emojis' }));
+  await user.click(screen.getByRole('button', { name: 'Inserir 🔥' }));
+
+  expect(box).toHaveValue('boa jogada🔥');
 });
 
 it('someone not released sees the comment count, but no button', async () => {

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Política de Privacidade" updated="24 de outubro de 2026">
+    <LegalPage title="Política de Privacidade" updated="25 de outubro de 2026">
       <p>
         O Riftlytics é um site sem fins lucrativos feito para um grupo de amigos
         acompanhar suas estatísticas de League of Legends. Esta página explica
@@ -50,6 +50,15 @@ export default function PrivacyPage() {
           reações; respostas a ela continuam, sem a citação.
         </li>
       </ul>
+
+      <h2>Vídeos na Resenha</h2>
+      <p>
+        Links do YouTube, Medal e Streamable aparecem como player dentro da
+        mensagem. Esses players são dos próprios serviços: ao dar play, eles
+        podem registrar dados de acesso conforme a política de privacidade de
+        cada um. O YouTube é carregado no modo de privacidade aprimorada, que
+        não grava cookies antes do play.
+      </p>
 
       <h2>Para que usamos (base legal)</h2>
       <p>

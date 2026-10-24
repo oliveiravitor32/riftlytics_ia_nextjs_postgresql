@@ -253,3 +253,21 @@ describe('replies and reactions', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+it('plays YouTube, Medal and Streamable links inside the message; other links just open', async () => {
+  await seed(
+    'olha isso https://youtu.be/dQw4w9WgXcQ?t=90 e https://exemplo.com/pagina'
+  );
+  signIn('leitor@gmail.com', 'Leitor');
+  renderApp(<ResenhaPage />);
+
+  const player = await screen.findByTitle('Vídeo do YouTube');
+  expect(player).toHaveAttribute(
+    'src',
+    'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=90'
+  );
+  const link = screen.getByRole('link', { name: 'https://exemplo.com/pagina' });
+  expect(link).toHaveAttribute('target', '_blank');
+  expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  expect(screen.getAllByTitle(/^Vídeo do/)).toHaveLength(1);
+});

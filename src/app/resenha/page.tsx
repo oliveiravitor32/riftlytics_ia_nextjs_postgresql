@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default function ResenhaPage() {
   return (
     <div className="bg-background px-4 py-6 text-foreground">
-      <section aria-labelledby="titulo-resenha" className="mx-auto max-w-3xl">
+      <section aria-labelledby="titulo-resenha" className="mx-auto max-w-5xl">
         <header className="mb-4 space-y-1">
           <h1
             id="titulo-resenha"
