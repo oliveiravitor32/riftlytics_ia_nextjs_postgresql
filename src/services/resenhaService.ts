@@ -20,7 +20,14 @@ import {
   type ResenhaPage,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
-import { championImage, queueLabel } from '@/src/lib/match-transformers';
+import {
+  buildGameResumeMatch,
+  championImage,
+  queueLabel,
+} from '@/src/lib/match-transformers';
+import type { Match } from '@/src/lib/validators';
+import type { GameResumeMatch } from '@/src/components/game-resume-card';
+import { latestDataDragonVersion } from './dataDragonService';
 import { parseRiotId, profileHref } from '@/src/lib/riot-id';
 import { isAdmin, type SessionUser } from './authService';
 import { findTrackedPlayer } from './playerService';
@@ -47,6 +54,7 @@ interface StoredPost {
   reactions: { userId: string; emoji: string }[];
   matchRef: {
     matchId: string;
+    playedAt: Date;
     queueId: number;
     championName: string;
     win: boolean;
@@ -76,6 +84,7 @@ function toMatchView(ref: NonNullable<StoredPost['matchRef']>): MatchRefView {
     queue: queueLabel(ref.queueId),
     kda: `${ref.kills}/${ref.deaths}/${ref.assists}`,
     win: ref.win,
+    playedAt: ref.playedAt.toISOString(),
   };
 }
 
@@ -180,6 +189,22 @@ async function findMatchLine({
     }));
   if (!line) throw new AppError('Partida não encontrada', 400);
   return line;
+}
+
+/** The full match card of a message's match, as on the profile */
+export async function matchCardOf(postId: string): Promise<GameResumeMatch> {
+  const post = await prisma.resenhaPost.findUnique({
+    where: { id: postId },
+    select: { matchRef: { include: { match: true, player: true } } },
+  });
+  const ref = post?.matchRef;
+  if (!ref?.player.puuid) throw new NotFoundError('Partida');
+  return buildGameResumeMatch(
+    ref.match.data as unknown as Match,
+    ref.player.puuid,
+    `${ref.player.gameName}#${ref.player.tagLine}`,
+    await latestDataDragonVersion()
+  );
 }
 
 /** How many messages comment each match (ids not commented are left out) */

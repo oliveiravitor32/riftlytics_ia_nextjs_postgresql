@@ -8,6 +8,7 @@ import { GET, POST } from '@/src/app/api/posts/route';
 import { DELETE } from '@/src/app/api/posts/[id]/route';
 import { POST as REACT } from '@/src/app/api/posts/[id]/reactions/route';
 import { GET as COUNTS } from '@/src/app/api/posts/counts/route';
+import { GET as MATCH } from '@/src/app/api/posts/[id]/match/route';
 import { championImage, queueLabel } from '@/src/lib/match-transformers';
 import { profileHref } from '@/src/lib/riot-id';
 import { prisma } from '@/src/lib/db';
@@ -392,6 +393,7 @@ describe('commenting a match', () => {
       queue: queueLabel(420),
       kda: '0/10/1',
       win: false,
+      playedAt: expect.any(String),
     });
   });
 
@@ -422,5 +424,23 @@ describe('commenting a match', () => {
       (_, i) => `M${i}`
     );
     expect((await counts(token, tooMany.join(','))).status).toBe(400);
+  });
+});
+
+describe('GET /api/posts/[id]/match', () => {
+  it('404 for a message without a match, 401 signed out', async () => {
+    const post: ResenhaPostView = await (
+      await send(tokenFor(POSTER), { text: 'sem partida' })
+    ).json();
+    const call = (token?: string) =>
+      MATCH(
+        new NextRequest(`http://localhost/api/posts/${post.id}/match`, {
+          headers: auth(token),
+        }),
+        { params: Promise.resolve({ id: post.id }) }
+      );
+
+    expect((await call()).status).toBe(401);
+    expect((await call(tokenFor(POSTER))).status).toBe(404);
   });
 });

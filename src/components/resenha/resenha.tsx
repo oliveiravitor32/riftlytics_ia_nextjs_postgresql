@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Session } from '@supabase/supabase-js';
 import { Popover } from 'radix-ui';
@@ -16,6 +16,8 @@ import {
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { PlayerAvatar } from '../player-avatar';
+import GameResumeCard from '../game-resume-card';
+import { EmojiPicker } from './emoji-picker';
 import {
   Dialog,
   DialogClose,
@@ -30,6 +32,7 @@ import {
   useDeletePost,
   useResenhaQuery,
   useSendPost,
+  usePostMatchCard,
   useToggleReaction,
 } from '@/src/queries/useResenhaQuery';
 import { isRateLimitError } from '@/src/queries/api-client';
@@ -42,6 +45,7 @@ import {
   type ResenhaPostView,
 } from '@/src/lib/resenha';
 import { browserSupabase, signInWithGoogle } from '@/src/lib/supabase-browser';
+import { splitLinks, videoEmbeds } from '@/src/lib/video-embeds';
 import { cn } from '@/lib/utils';
 
 const TIME_ZONE = 'America/Sao_Paulo';
@@ -70,15 +74,72 @@ function when(iso: string): string {
     : dayAndTime.format(date);
 }
 
-/** The match a message comments on, linking to the player's profile */
-function MatchChip({ match }: { match: MatchRefView }) {
+const PROVIDER_NAMES = {
+  youtube: 'YouTube',
+  medal: 'Medal',
+  streamable: 'Streamable',
+} as const;
+
+/** The text with its links clickable (opened in a new tab) */
+function MessageText({ text }: { text: string }) {
+  return splitLinks(text).map((part, i) =>
+    part.href ? (
+      <a
+        key={i}
+        href={part.href}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        onClick={(e) => e.stopPropagation()}
+        className="text-primary underline-offset-2 hover:underline"
+      >
+        {part.text}
+      </a>
+    ) : (
+      <Fragment key={i}>{part.text}</Fragment>
+    )
+  );
+}
+
+/** YouTube / Medal / Streamable links played right in the message */
+function VideoEmbeds({ text }: { text: string }) {
+  const embeds = videoEmbeds(text);
+  if (embeds.length === 0) return null;
   return (
-    <Link
-      href={match.profileHref}
+    <div className="mt-1.5 space-y-1.5">
+      {embeds.map((embed) => (
+        <iframe
+          key={embed.embedUrl}
+          src={embed.embedUrl}
+          title={`Vídeo do ${PROVIDER_NAMES[embed.provider]}`}
+          loading="lazy"
+          allow="encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="aspect-video w-full max-w-md rounded-md border border-border bg-black"
+        />
+      ))}
+    </div>
+  );
+}
+
+/** The match a message comments on, linking to the player's profile */
+function MatchChip({
+  match,
+  onOpen,
+}: {
+  match: MatchRefView;
+  onOpen: () => void;
+}) {
+  return (
+    <button
+      type="button"
       aria-label={`Partida de ${match.playerName}: ${match.champion} ${match.kda}, ${match.win ? 'vitória' : 'derrota'}`}
-      onClick={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onOpen();
+      }}
       className={cn(
-        'my-1 flex w-fit max-w-full items-center gap-2 rounded-md border border-l-4 border-border px-2 py-1 text-sm hover:border-foreground/30',
+        'my-1 flex w-fit max-w-full items-center gap-2 rounded-md border border-l-4 border-border px-2 py-1 text-left text-sm hover:border-foreground/30',
         match.win
           ? 'border-l-blue-500 bg-blue-500/10'
           : 'border-l-rose-500 bg-rose-500/10'
@@ -105,10 +166,64 @@ function MatchChip({ match }: { match: MatchRefView }) {
       >
         {match.win ? 'Vitória' : 'Derrota'}
       </span>
+      <time
+        dateTime={match.playedAt}
+        className="shrink-0 text-xs text-muted-foreground"
+      >
+        {dayAndTime.format(new Date(match.playedAt))}
+      </time>
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
         {match.queue}
       </span>
-    </Link>
+    </button>
+  );
+}
+
+/** The commented match's full card, over the Resenha */
+function MatchDialog({
+  session,
+  post,
+  onClose,
+}: {
+  session: Session;
+  post: ResenhaPostView | null;
+  onClose: () => void;
+}) {
+  const card = usePostMatchCard(session, post?.id ?? null);
+  return (
+    <Dialog open={post !== null} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="w-[min(96vw,64rem)] gap-4 rounded-md p-4 pt-5 sm:p-6">
+        <DialogTitle className="pr-10 text-lg font-semibold">
+          Partida de {post?.match?.playerName}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          O card completo da partida comentada
+        </DialogDescription>
+        {card.isPending ? (
+          <p
+            role="status"
+            className="flex items-center gap-2 text-muted-foreground"
+          >
+            <Loader2 className="size-4 animate-spin opacity-70" />
+            Carregando a partida…
+          </p>
+        ) : card.isError ? (
+          <p role="alert" className="text-muted-foreground">
+            Não deu para carregar a partida.
+          </p>
+        ) : (
+          <GameResumeCard match={card.data} />
+        )}
+        {post?.match && (
+          <Link
+            href={post.match.profileHref}
+            className="w-fit text-sm text-primary underline-offset-2 hover:underline"
+          >
+            Ver o perfil de {post.match.playerName}
+          </Link>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -201,8 +316,10 @@ function Message({
   onReply,
   onReact,
   onDelete,
+  onOpenMatch,
 }: {
   post: ResenhaPostView;
+  onOpenMatch: () => void;
   first: boolean;
   active: boolean;
   canPost: boolean;
@@ -258,8 +375,11 @@ function Message({
               </time>
             </p>
           )}
-          {post.match && <MatchChip match={post.match} />}
-          <p className="whitespace-pre-wrap break-words">{post.text}</p>
+          {post.match && <MatchChip match={post.match} onOpen={onOpenMatch} />}
+          <p className="whitespace-pre-wrap break-words">
+            <MessageText text={post.text} />
+          </p>
+          <VideoEmbeds text={post.text} />
           {post.reactions.length > 0 && (
             <ul aria-label="Reações" className="mt-1 flex flex-wrap gap-1">
               {post.reactions.map((r) => (
@@ -310,6 +430,7 @@ function Composer({
   onCancelReply: () => void;
 }) {
   const [text, setText] = useState('');
+  const box = useRef<HTMLTextAreaElement>(null);
   const send = useSendPost(session);
   const trimmed = text.trim();
 
@@ -354,7 +475,9 @@ function Composer({
         <label htmlFor="mensagem" className="sr-only">
           Mensagem
         </label>
+        <EmojiPicker target={box} value={text} onChange={setText} />
         <textarea
+          ref={box}
           id="mensagem"
           rows={1}
           value={text}
@@ -408,6 +531,7 @@ function Chat({ session }: { session: Session }) {
   const react = useToggleReaction(session);
   const [deleting, setDeleting] = useState<ResenhaPostView | null>(null);
   const [replyingTo, setReplyingTo] = useState<ResenhaPostView | null>(null);
+  const [viewing, setViewing] = useState<ResenhaPostView | null>(null);
   // Phones have no hover: a tap shows that message's actions
   const [activeId, setActiveId] = useState<string | null>(null);
   const scroller = useRef<HTMLDivElement>(null);
@@ -478,6 +602,7 @@ function Chat({ session }: { session: Session }) {
                 }}
                 onReact={(emoji) => react.mutate({ id: post.id, emoji })}
                 onDelete={() => setDeleting(post)}
+                onOpenMatch={() => setViewing(post)}
               />
             ))}
           </ol>
@@ -498,12 +623,20 @@ function Chat({ session }: { session: Session }) {
         </p>
       )}
 
+      <MatchDialog
+        session={session}
+        post={viewing}
+        onClose={() => setViewing(null)}
+      />
+
       <Dialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
       >
-        <DialogContent>
-          <DialogTitle>Apagar mensagem?</DialogTitle>
+        <DialogContent className="w-[min(92vw,28rem)] gap-3 rounded-md p-6">
+          <DialogTitle className="pr-10 text-lg font-semibold">
+            Apagar mensagem?
+          </DialogTitle>
           <DialogDescription className="whitespace-pre-wrap break-words">
             {deleting?.text}
           </DialogDescription>

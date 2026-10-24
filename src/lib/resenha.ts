@@ -41,6 +41,8 @@ export interface MatchRefView {
   queue: string;
   kda: string;
   win: boolean;
+  /** When it was played (ISO) */
+  playedAt: string;
 }
 
 /** Messages per match id (the cards' comment counters) */

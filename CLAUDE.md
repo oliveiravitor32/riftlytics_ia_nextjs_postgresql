@@ -173,6 +173,7 @@ Source of truth: `prisma/schema.prisma` (Prisma 7). Summary:
 - **MatchupTip** (`matchup_tips`): AI lane tips per champion pair (alphabetical `champA`/`champB`, so A×B and B×A share a row), `rows` JSON, `expiresAt` = 2 months; regenerated on the next request after that.
 - **PostingAllowlist** (`posting_allowlist`): emails allowed to post in the Resenha (allowlist only: anyone signs in with Google and reads, only listed emails post). Added by hand (Prisma Studio / Supabase dashboard); checked on every post (`requirePoster` in `src/services/authService.ts`). `admin = true` can delete anyone's post.
 - **ResenhaAuthor** / **ResenhaPost** (`resenha_authors`, `resenha_posts`): the Resenha (group chat). LGPD: no email stored; author = Supabase user id; name, photo URL and message text encrypted by the app (AES-256-GCM, `RESENHA_KEY`, `src/lib/resenha-crypto.ts`). `replyToId` = the message answered (set to null when that one is deleted). `matchId` + `matchPlayerId` = the match commented from its card ("Mandar pra resenha"; FK to `player_matches`, public game data, not encrypted).
+- Video links (YouTube via youtube-nocookie, Medal, Streamable) in a message are embedded by `src/lib/video-embeds.ts`: players rebuilt from the parsed id, never the pasted URL; at most 2 per message.
 - **ResenhaReaction** (`resenha_reactions`): one emoji (`REACTION_EMOJIS` only) per account per message; deleted with the message. Toggling = add or take back.
 - **BotSession** (`bot_session`): WhatsApp bot session (Baileys auth state), one encrypted row per key; only `bot/` reads it.
 - **DuoAnalysis** (`duo_analyses`): Phase 3; `player1`/`player2` relations, score and AI text, `cachedUntil`.
@@ -229,6 +230,7 @@ GET    /api/matchup?a=&b=          - Lane tips for two champions (ids = Riot cha
 GET    /api/me                        - Signed-in account (Bearer = Supabase access token) + canPost (allowlist)
 GET    /api/posts?before=             - Resenha page, newest first (signed-in only)
 POST   /api/posts                     - New Resenha message { text, replyToId?, match?: { matchId, riotId } }
+GET    /api/posts/[id]/match          - Full match card of a message's match (signed-in only)
 GET    /api/posts/counts?ids=         - Messages per match id, for the cards' counters (signed-in only, up to 50 ids) (allowlist only, 10/min per person)
 DELETE /api/posts/[id]                - Delete a message (author or admin)
 POST   /api/posts/[id]/reactions      - Toggle the caller's reaction { emoji } (allowlist only)

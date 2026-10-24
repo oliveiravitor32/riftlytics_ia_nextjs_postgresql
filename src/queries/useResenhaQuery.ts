@@ -18,6 +18,7 @@ import {
   type ResenhaPage,
   type ResenhaPostView,
 } from '@/src/lib/resenha';
+import type { GameResumeMatch } from '@/src/components/game-resume-card';
 import { getJson, sendJson } from './api-client';
 
 const KEY = ['resenha'] as const;
@@ -95,5 +96,21 @@ export function useToggleReaction(session: Session) {
         { method: 'POST', token: session.access_token, body: { emoji } }
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
+/** The full card of a message's match (fetched when its dialog opens) */
+export function usePostMatchCard(session: Session, postId: string | null) {
+  return useQuery({
+    queryKey: [...KEY, 'match', postId],
+    queryFn: () =>
+      getJson<GameResumeMatch>(
+        `/api/posts/${encodeURIComponent(postId!)}/match`,
+        session.access_token
+      ),
+    enabled: postId !== null,
+    // A finished match never changes
+    staleTime: Infinity,
+    retry: false,
   });
 }
